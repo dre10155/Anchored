@@ -3,13 +3,10 @@ import JSZip from 'jszip'
 import { buildVC, credentialHash, makeIssuerDID, randomSalt } from './crypto'
 import { buildMerkleTree, type MerkleTree } from './merkle'
 import { makeVerifierQR } from './vc'
+import { DEFAULT_CREDENTIAL_TYPE, normaliseKey, type CredentialType, type CredentialField } from './credentialTypes'
 
-export interface RosterRecord {
-  studentName: string
-  university: string
-  degree: string
-  year: number
-}
+/** A validated roster row — an arbitrary set of the active credential type's fields. */
+export type RosterRecord = Record<string, string | number>
 
 export interface RosterError {
   row: number
@@ -21,60 +18,57 @@ export interface ParsedRoster {
   errors: RosterError[]
 }
 
-const REQUIRED_FIELDS = ['studentName', 'university', 'degree', 'year'] as const
-
-/** Normalise a header so "Student Name", "student_name" and "studentname" all match. */
-function normaliseKey(key: string): string {
-  return key.toLowerCase().replace(/[\s_-]/g, '')
+/** Map every accepted header (the field key plus its aliases) to the canonical field. */
+function buildAliasMap(type: CredentialType): Map<string, CredentialField> {
+  const map = new Map<string, CredentialField>()
+  for (const field of type.fields) {
+    map.set(normaliseKey(field.key), field)
+    map.set(normaliseKey(field.label), field)
+    for (const alias of field.aliases || []) map.set(normaliseKey(alias), field)
+  }
+  return map
 }
 
-const FIELD_ALIASES: Record<string, (typeof REQUIRED_FIELDS)[number]> = {
-  studentname: 'studentName',
-  name: 'studentName',
-  university: 'university',
-  institution: 'university',
-  school: 'university',
-  degree: 'degree',
-  program: 'degree',
-  qualification: 'degree',
-  year: 'year',
-  gradyear: 'year',
-  graduationyear: 'year',
-}
-
-function normaliseRow(raw: Record<string, any>): Record<string, any> {
+function normaliseRow(raw: Record<string, any>, aliasMap: Map<string, CredentialField>): Record<string, any> {
   const out: Record<string, any> = {}
   for (const [key, value] of Object.entries(raw)) {
-    const field = FIELD_ALIASES[normaliseKey(key)]
-    if (field && out[field] === undefined) out[field] = typeof value === 'string' ? value.trim() : value
+    const field = aliasMap.get(normaliseKey(key))
+    if (field && out[field.key] === undefined) out[field.key] = typeof value === 'string' ? value.trim() : value
   }
   return out
 }
 
-function validateRow(row: Record<string, any>, rowNumber: number): { record?: RosterRecord; error?: RosterError } {
-  const missing = REQUIRED_FIELDS.filter((f) => row[f] === undefined || row[f] === '')
+function validateRow(
+  row: Record<string, any>,
+  rowNumber: number,
+  type: CredentialType
+): { record?: RosterRecord; error?: RosterError } {
+  const missing = type.fields.filter((f) => row[f.key] === undefined || row[f.key] === '')
   if (missing.length) {
-    return { error: { row: rowNumber, message: `Missing ${missing.join(', ')}` } }
+    return { error: { row: rowNumber, message: `Missing ${missing.map((f) => f.key).join(', ')}` } }
   }
-  const year = Number(row.year)
-  if (!Number.isInteger(year) || year < 1900 || year > 2100) {
-    return { error: { row: rowNumber, message: `Invalid year "${row.year}" (expected 1900–2100)` } }
+  const record: RosterRecord = {}
+  for (const field of type.fields) {
+    if (field.type === 'number') {
+      const n = Number(row[field.key])
+      const min = field.min ?? -Infinity
+      const max = field.max ?? Infinity
+      if (!Number.isInteger(n) || n < min || n > max) {
+        return { error: { row: rowNumber, message: `Invalid ${field.label} "${row[field.key]}"` } }
+      }
+      record[field.key] = n
+    } else {
+      record[field.key] = String(row[field.key])
+    }
   }
-  return {
-    record: {
-      studentName: String(row.studentName),
-      university: String(row.university),
-      degree: String(row.degree),
-      year,
-    },
-  }
+  return { record }
 }
 
 /**
- * Parse a CSV or JSON roster. Every row is validated up front so the registrar
- * sees all problems before anything is anchored on the ledger.
+ * Parse a CSV or JSON roster for a given credential type. Every row is validated
+ * up front so the issuer sees all problems before anything is anchored.
  */
-export function parseRoster(text: string, filename: string): ParsedRoster {
+export function parseRoster(text: string, filename: string, type: CredentialType = DEFAULT_CREDENTIAL_TYPE): ParsedRoster {
   let rawRows: Record<string, any>[]
 
   if (filename.toLowerCase().endsWith('.json')) {
@@ -91,11 +85,11 @@ export function parseRoster(text: string, filename: string): ParsedRoster {
     rawRows = result.data
   }
 
+  const aliasMap = buildAliasMap(type)
   const records: RosterRecord[] = []
   const errors: RosterError[] = []
   rawRows.forEach((raw, i) => {
-    const rowNumber = i + 1
-    const { record, error } = validateRow(normaliseRow(raw), rowNumber)
+    const { record, error } = validateRow(normaliseRow(raw, aliasMap), i + 1, type)
     if (record) records.push(record)
     else if (error) errors.push(error)
   })
@@ -151,7 +145,7 @@ export function batchUri(root: string): string {
 }
 
 function safeFilename(name: string, index: number): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'student'
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'subject'
   return `${String(index + 1).padStart(4, '0')}-${slug}`
 }
 
@@ -161,12 +155,13 @@ export interface BatchZipParams {
   issuerAccount: string
   issuerDomain?: string
   nftId: string
+  type?: CredentialType
   onProgress?: (done: number, total: number) => void
 }
 
 /**
- * Package one credential file + QR per student, plus a manifest, into a ZIP the
- * registrar can distribute.
+ * Package one credential file + QR per subject, plus a manifest, into a ZIP the
+ * issuer can distribute.
  */
 export async function makeBatchZip({
   entries,
@@ -174,21 +169,24 @@ export async function makeBatchZip({
   issuerAccount,
   issuerDomain,
   nftId,
+  type = DEFAULT_CREDENTIAL_TYPE,
   onProgress,
 }: BatchZipParams): Promise<Blob> {
   const zip = new JSZip()
   const issuedAt = new Date().toISOString()
   const folder = zip.folder(`anchored-batch-${tree.root.slice(0, 12)}`)!
+  const nameOf = (record: RosterRecord) => String(record[type.primaryField] ?? 'subject')
 
   for (const [i, entry] of entries.entries()) {
     const batch = { root: tree.root, proof: tree.proofs[i] }
     const credentialFile = {
       anchoredVersion: 2,
+      credentialType: type.id,
       vc: entry.vc,
       salt: entry.salt,
       batch: { ...batch, issuerAccount, nftId },
     }
-    const base = safeFilename(entry.record.studentName, i)
+    const base = safeFilename(nameOf(entry.record), i)
     folder.file(`${base}.json`, JSON.stringify(credentialFile, null, 2))
 
     const qrDataUrl = await makeVerifierQR({
@@ -217,12 +215,11 @@ export async function makeBatchZip({
         merkleRoot: tree.root,
         nftId,
         credentialCount: entries.length,
+        credentialType: type.id,
         credentials: entries.map((e, i) => ({
-          studentName: e.record.studentName,
-          degree: e.record.degree,
-          year: e.record.year,
+          ...e.record,
           leaf: e.leaf,
-          file: `${safeFilename(e.record.studentName, i)}.json`,
+          file: `${safeFilename(nameOf(e.record), i)}.json`,
         })),
       },
       null,
@@ -242,17 +239,17 @@ export async function makeBatchZip({
       `Merkle root:     ${tree.root}`,
       `Anchor NFT ID:   ${nftId}`,
       '',
-      'This package contains one credential file and one QR code per graduate.',
-      'Send each graduate ONLY their own two files — the .json is their credential',
-      'and the QR is how a verifier checks it in seconds.',
+      `This package contains one credential file and one QR code per ${type.subjectNoun.toLowerCase()}.`,
+      `Send each ${type.subjectNoun.toLowerCase()} ONLY their own two files — the .json is their`,
+      'credential and the QR is how a verifier checks it in seconds.',
       '',
       'Anyone can verify a credential at https://anchor-ed.vercel.app/verify by',
       'uploading the .json file or scanning the QR code. No login required.',
       '',
-      'Privacy: no student data is on the public ledger. The ledger holds only the',
-      'Merkle root above — a fingerprint of the whole class that reveals nothing',
+      'Privacy: no personal data is on the public ledger. The ledger holds only the',
+      'Merkle root above — a fingerprint of the whole batch that reveals nothing',
       'about any individual. batch-manifest.json is YOUR internal record; it lists',
-      'every graduate, so do not distribute it to third parties.',
+      'every subject, so do not distribute it to third parties.',
     ].join('\n')
   )
 

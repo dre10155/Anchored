@@ -63,13 +63,12 @@
                 : 'Diploma Not Verified ❌' }}
             </div>
             <div class="text-sm text-gray-700 mb-4">{{ resultReason }}</div>
-            <div v-if="diplomaDetails" class="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-              <h3 class="font-semibold text-brand-black mb-3 text-lg">Diploma Details</h3>
+            <div v-if="detailRows.length" class="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+              <h3 class="font-semibold text-brand-black mb-3 text-lg">{{ detailTitle }}</h3>
               <div class="space-y-2 text-sm">
-                <p class="text-gray-700"><strong class="text-brand-black">Student Name:</strong> {{ diplomaDetails.studentName }}</p>
-                <p class="text-gray-700"><strong class="text-brand-black">University:</strong> {{ diplomaDetails.university }}</p>
-                <p class="text-gray-700"><strong class="text-brand-black">Degree:</strong> {{ diplomaDetails.degree }}</p>
-                <p class="text-gray-700"><strong class="text-brand-black">Year:</strong> {{ diplomaDetails.year }}</p>
+                <p v-for="row in detailRows" :key="row.label" class="text-gray-700">
+                  <strong class="text-brand-black">{{ row.label }}:</strong> {{ row.value }}
+                </p>
               </div>
             </div>
           </div>
@@ -91,11 +90,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { credentialHash } from '../lib/crypto'
 import { verifyMerkleProof } from '../lib/merkle'
 import { scanIssuerLedger, decodeHex } from '../lib/verify'
 import { checkDidListsAddress, decodeHexDomain } from '../lib/did'
+import { inferCredentialType, normaliseKey } from '../lib/credentialTypes'
 import { Client } from 'xrpl'
 import { QrcodeStream } from 'qrcode-reader-vue3'
 
@@ -113,6 +113,21 @@ const batch = ref<{ root: string; proof: string[] } | null>(null)
 const showQrScanner = ref(false)
 const qrError = ref('')
 const progressNote = ref('')
+
+// Render whatever fields the credential carries, labelled by its inferred type —
+// so the verifier works for diplomas, licenses, workforce credentials, etc.
+const detailType = computed(() => inferCredentialType(diplomaDetails.value))
+const detailTitle = computed(() => (detailType.value ? `${detailType.value.displayName} Details` : 'Credential Details'))
+const detailRows = computed(() => {
+  const subject = diplomaDetails.value
+  if (!subject) return [] as { label: string; value: any }[]
+  const labelFor = (key: string) =>
+    detailType.value?.fields.find((f) => normaliseKey(f.key) === normaliseKey(key))?.label ||
+    key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())
+  return Object.entries(subject)
+    .filter(([key]) => key !== 'issuerAccount')
+    .map(([key, value]) => ({ label: labelFor(key), value }))
+})
 
 function cleanAccount(account: string) {
   if (!account) return ''

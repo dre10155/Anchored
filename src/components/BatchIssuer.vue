@@ -1,10 +1,10 @@
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-brand-black mb-2">Batch Issue a Graduating Class</h2>
+    <h2 class="text-2xl font-bold text-brand-black mb-2">Batch Issue {{ credType.displayNamePlural }}</h2>
     <p class="text-sm text-gray-600 mb-6">
-      Upload a roster and anchor the whole class with <span class="font-semibold">one signature</span>.
+      Upload a roster and anchor the whole batch with <span class="font-semibold">one signature</span>.
       Every credential is hashed into a single Merkle tree; only the tree's root goes on the ledger,
-      and each graduate receives a proof that their credential belongs to it.
+      and each {{ credType.subjectNoun.toLowerCase() }} receives a proof that their credential belongs to it.
     </p>
 
     <!-- Step 1: roster -->
@@ -17,7 +17,7 @@
         class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-blue file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-all file:duration-200"
       />
       <p class="text-xs text-gray-500">
-        CSV or JSON with columns: <span class="font-mono">studentName, university, degree, year</span>.
+        CSV or JSON with columns: <span class="font-mono">{{ credType.fields.map(f => f.key).join(', ') }}</span>.
         <a :href="sampleCsvUrl" download="anchored-roster-sample.csv" class="text-primary-blue hover:text-blue-700 font-medium">Download a sample</a>
       </p>
     </div>
@@ -48,16 +48,12 @@
         <table class="w-full text-sm bg-white">
           <thead>
             <tr class="bg-gradient-to-r from-primary-blue to-blue-600 text-white">
-              <th class="px-4 py-3 text-left font-semibold">Student</th>
-              <th class="px-4 py-3 text-left font-semibold">Degree</th>
-              <th class="px-4 py-3 text-left font-semibold">Year</th>
+              <th v-for="field in credType.fields" :key="field.key" class="px-4 py-3 text-left font-semibold">{{ field.label }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(r, i) in records.slice(0, 5)" :key="i" class="border-t border-gray-200">
-              <td class="px-4 py-3 font-medium text-gray-900">{{ r.studentName }}</td>
-              <td class="px-4 py-3 text-gray-700">{{ r.degree }}</td>
-              <td class="px-4 py-3 text-gray-700">{{ r.year }}</td>
+              <td v-for="(field, fi) in credType.fields" :key="field.key" class="px-4 py-3" :class="fi === 0 ? 'font-medium text-gray-900' : 'text-gray-700'">{{ r[field.key] }}</td>
             </tr>
           </tbody>
         </table>
@@ -126,9 +122,14 @@ import { NFTokenMintFlags } from 'xrpl'
 import { parseRoster, buildBatch, makeBatchZip, batchUri, type RosterRecord, type RosterError } from '../lib/batch'
 import { withXrpl, resolveMintedNft, validateMintTx } from '../lib/xrplClient'
 import { useXamanSign } from '../composables/useXamanSign'
+import { DEFAULT_CREDENTIAL_TYPE, type CredentialType } from '../lib/credentialTypes'
 import XamanSignModal from './XamanSignModal.vue'
 
-const props = defineProps<{ issuerAccount: string; issuerDomain?: string }>()
+const props = withDefaults(
+  defineProps<{ issuerAccount: string; issuerDomain?: string; credentialType?: CredentialType }>(),
+  { credentialType: () => DEFAULT_CREDENTIAL_TYPE }
+)
+const credType = computed(() => props.credentialType)
 
 const records = ref<RosterRecord[]>([])
 const rosterErrors = ref<RosterError[]>([])
@@ -143,11 +144,11 @@ const result = ref<{ root: string; nftId: string; count: number; zipUrl: string 
 const { xaman, cancel: cancelXamanSign, close: closeXaman, signViaXaman } = useXamanSign()
 
 const sampleCsvUrl = computed(() => {
-  const csv = [
-    'studentName,university,degree,year',
-    'Jane Doe,Saint Lucia National University,BSc Nursing,2026',
-    '"Roe, John",Saint Lucia National University,BSc Computer Science,2026',
-  ].join('\n')
+  const fields = credType.value.fields
+  const header = fields.map((f) => f.key).join(',')
+  const sampleRow = (name: string) =>
+    fields.map((f) => (f.type === 'number' ? '2026' : `"${f.key === credType.value.primaryField ? name : 'Sample ' + f.label}"`)).join(',')
+  const csv = [header, sampleRow('Jane Doe'), sampleRow('Roe, John')].join('\n')
   return URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
 })
 
@@ -166,7 +167,7 @@ async function handleFileChange(e: Event) {
   if (!file) return
 
   try {
-    const parsed = parseRoster(await file.text(), file.name)
+    const parsed = parseRoster(await file.text(), file.name, credType.value)
     records.value = parsed.records
     rosterErrors.value = parsed.errors
     if (!parsed.records.length) {
@@ -233,6 +234,7 @@ async function handleAnchor() {
       issuerAccount: props.issuerAccount,
       issuerDomain: props.issuerDomain,
       nftId: minted.nftId,
+      type: credType.value,
       onProgress: (done, total) => {
         progressDone.value = done
         progressTotal.value = total

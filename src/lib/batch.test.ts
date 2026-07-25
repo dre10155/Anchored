@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { parseRoster, buildBatch, batchUri } from './batch'
 import { verifyMerkleProof } from './merkle'
 import { credentialHash } from './crypto'
+import { getCredentialType } from './credentialTypes'
 
 const ISSUER = 'rNeqwL8sjHvi4TndDCrYqYDh1dQKNBekhv'
 
@@ -47,8 +48,21 @@ describe('parseRoster', () => {
     expect(records).toHaveLength(1)
     expect(errors).toHaveLength(3)
     expect(errors[0].message).toMatch(/Missing studentName/)
-    expect(errors[1].message).toMatch(/Invalid year/)
-    expect(errors[2].message).toMatch(/Invalid year/)
+    expect(errors[1].message).toMatch(/Invalid Year/)
+    expect(errors[2].message).toMatch(/Invalid Year/)
+  })
+
+  it('parses a roster for a different credential type — same engine, new config', () => {
+    const type = getCredentialType('professional-license')
+    const csv = 'Licensee Name,Profession,License Number,Expiry Year\n"Nurse, Jane",Registered Nurse,RN-4471,2028'
+    const { records, errors } = parseRoster(csv, 'licenses.csv', type)
+    expect(errors).toEqual([])
+    expect(records[0]).toEqual({
+      holderName: 'Nurse, Jane',
+      profession: 'Registered Nurse',
+      licenseNumber: 'RN-4471',
+      expiryYear: 2028,
+    })
   })
 
   it('parses a JSON roster', () => {

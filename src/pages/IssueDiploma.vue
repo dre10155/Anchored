@@ -12,10 +12,26 @@
         <div class="text-center mb-8 sm:mb-12">
           <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Issue Credentials</h1>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-            Anchor verifiable diploma credentials on the XRP Ledger
+            Anchor verifiable {{ credType.displayName.toLowerCase() }} credentials on the XRP Ledger
           </p>
           <div v-if="devSeedMode" class="inline-block mt-4 px-3 py-1 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 text-xs font-medium">
             Dev seed mode — local signing, testnet only
+          </div>
+        </div>
+
+        <!-- Credential type: one engine, many configs -->
+        <div class="max-w-md mx-auto mb-8">
+          <label class="block text-sm font-medium text-gray-300 mb-2 text-center">Credential type</label>
+          <div class="flex flex-wrap gap-2 justify-center">
+            <button
+              v-for="t in credentialTypes"
+              :key="t.id"
+              @click="selectType(t.id)"
+              class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border"
+              :class="t.id === credTypeId
+                ? 'bg-primary-blue text-white border-primary-blue'
+                : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'"
+            >{{ t.displayName }}</button>
           </div>
         </div>
 
@@ -29,31 +45,27 @@
         </div>
         <div v-if="mintMode === 'single'" class="bg-white rounded-xl shadow-xl p-5 sm:p-8 border border-gray-200">
           <form @submit.prevent="handleSubmit" class="space-y-6">
-            <div>
-              <label class="block font-medium text-brand-black mb-2">Student Name</label>
-              <input v-model="studentName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all" required />
-            </div>
-            <div>
-              <label class="block font-medium text-brand-black mb-2">University</label>
-              <input v-model="university" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all" required />
-            </div>
-            <div>
-              <label class="block font-medium text-brand-black mb-2">Degree</label>
-              <input v-model="degree" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all" required />
-            </div>
-            <div>
-              <label class="block font-medium text-brand-black mb-2">Year</label>
-              <input v-model.number="year" type="number" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all" required min="1900" max="2100" />
+            <div v-for="field in credType.fields" :key="field.key">
+              <label class="block font-medium text-brand-black mb-2">{{ field.label }}</label>
+              <input
+                v-model="formData[field.key]"
+                :type="field.type === 'number' ? 'number' : 'text'"
+                :min="field.min"
+                :max="field.max"
+                :placeholder="field.placeholder"
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                required
+              />
             </div>
             <div class="pt-4 border-t border-gray-200">
               <label class="block font-medium text-brand-black text-sm mb-2">Issuer Account</label>
               <input v-model="issuerAccount" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" required placeholder="r..." />
             </div>
             <div>
-              <label class="block font-medium text-brand-black text-sm mb-2">Institution Domain (optional, for did:web identity)</label>
-              <input v-model="issuerDomain" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="registrar.university.edu" />
+              <label class="block font-medium text-brand-black text-sm mb-2">{{ credType.issuerNoun }} Domain (optional, for did:web identity)</label>
+              <input v-model="issuerDomain" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" :placeholder="credType.issuerDomainPlaceholder" />
               <p class="text-xs text-gray-500 mt-1">
-                Verified institutions show a green "issued by" badge.
+                Verified issuers show a green "issued by" badge.
                 <router-link to="/identity" class="text-primary-blue hover:text-blue-700 font-medium">Set up your identity →</router-link>
               </p>
             </div>
@@ -65,7 +77,7 @@
               You'll sign this mint with the Xaman app — no seed is ever entered here.
             </p>
             <button type="submit" :disabled="loading" class="w-full px-8 py-3 bg-primary-blue text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg shadow-blue-500/30 disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed">
-              {{ loading ? 'Issuing...' : 'Issue Diploma NFT' }}
+              {{ loading ? 'Issuing...' : `Issue ${credType.displayName} NFT` }}
             </button>
           </form>
 
@@ -74,7 +86,7 @@
           </div>
 
           <div v-if="success" class="mt-6 p-6 bg-green-50 border border-green-200 rounded-lg">
-            <div class="font-bold text-green-700 text-lg mb-4">Diploma NFT minted successfully!</div>
+            <div class="font-bold text-green-700 text-lg mb-4">{{ credType.displayName }} NFT minted successfully!</div>
             <div class="space-y-2 text-sm text-gray-700">
               <div><span class="font-semibold">NFT ID:</span> <span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{{ nftId }}</span></div>
               <div v-if="nftMintTime"><span class="font-semibold">Minted On:</span> <span class="font-mono">{{ nftMintTime }}</span></div>
@@ -98,16 +110,16 @@
               <input v-model="issuerAccount" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" required placeholder="r..." />
             </div>
             <div>
-              <label class="block font-medium text-brand-black text-sm mb-2">Institution Domain (optional, for did:web identity)</label>
-              <input v-model="issuerDomain" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="registrar.university.edu" />
+              <label class="block font-medium text-brand-black text-sm mb-2">{{ credType.issuerNoun }} Domain (optional, for did:web identity)</label>
+              <input v-model="issuerDomain" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" :placeholder="credType.issuerDomainPlaceholder" />
             </div>
           </div>
-          <BatchIssuer :issuer-account="issuerAccount.trim()" :issuer-domain="issuerDomain.trim() || undefined" />
+          <BatchIssuer :issuer-account="issuerAccount.trim()" :issuer-domain="issuerDomain.trim() || undefined" :credential-type="credType" />
         </div>
         <div v-if="issuerAccount && nftCount !== null" class="mt-12 bg-white rounded-xl shadow-xl p-5 sm:p-8 border border-gray-200">
-          <h2 class="text-2xl font-bold text-brand-black mb-4">Diplomas Minted by Institution</h2>
+          <h2 class="text-2xl font-bold text-brand-black mb-4">Anchors Minted by This Issuer</h2>
           <div class="mb-6 text-gray-700">
-            Total Diplomas Minted: <span class="font-bold text-primary-blue text-xl">{{ nftCount }}</span>
+            Total Anchors Minted: <span class="font-bold text-primary-blue text-xl">{{ nftCount }}</span>
           </div>
 
           <div v-if="mintedNfts.length" class="overflow-x-auto rounded-lg border border-gray-200">
@@ -133,7 +145,7 @@
             </table>
           </div>
           <div v-else class="text-gray-500 text-center py-8">
-            No diplomas (NFTs) found for this institution wallet.
+            No anchors (NFTs) found for this issuer wallet.
           </div>
         </div>
       </div>
@@ -153,11 +165,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { credentialHash, buildVC, makeIssuerDID, randomSalt } from '../lib/crypto'
 import { withXrpl, submitAndWait, resolveMintedNft, validateMintTx } from '../lib/xrplClient'
 import { makeDownloadUrlForVC, revokeObjectUrl, makeVerifierQR } from '../lib/vc'
 import { useXamanSign } from '../composables/useXamanSign'
+import { CREDENTIAL_TYPES, getCredentialType, DEFAULT_CREDENTIAL_TYPE } from '../lib/credentialTypes'
 import { Client, Wallet, getNFTokenID, NFTokenMintFlags } from 'xrpl'
 import { Buffer } from 'buffer'
 import XamanSignModal from '../components/XamanSignModal.vue'
@@ -167,10 +180,26 @@ import BatchIssuer from '../components/BatchIssuer.vue'
 // by default; production issuance signs via Xaman so seeds never touch the browser.
 const devSeedMode = import.meta.env.VITE_DEV_SEED_MODE === 'true'
 
-const studentName = ref('')
-const university = ref('')
-const degree = ref('')
-const year = ref(new Date().getFullYear())
+// One engine, many configs: the form fields come from the selected credential type.
+const credentialTypes = CREDENTIAL_TYPES
+const credTypeId = ref(DEFAULT_CREDENTIAL_TYPE.id)
+const credType = computed(() => getCredentialType(credTypeId.value))
+const formData = reactive<Record<string, string | number>>({})
+
+function resetFormData(typeId: string) {
+  for (const key of Object.keys(formData)) delete formData[key]
+  for (const field of getCredentialType(typeId).fields) {
+    formData[field.key] = field.type === 'number' ? new Date().getFullYear() : ''
+  }
+}
+resetFormData(credTypeId.value)
+
+function selectType(id: string) {
+  credTypeId.value = id
+  resetFormData(id)
+  success.value = false
+}
+
 const issuerAccount = ref('')
 const issuerDomain = ref('')
 const issuerSeed = ref('')
@@ -261,9 +290,9 @@ async function handleSubmit() {
   }
 
   try {
-    // 1. Build VC
+    // 1. Build VC — subject fields come from the active credential-type config
     const issuer = makeIssuerDID(issuerAccount.value, issuerDomain.value)
-    const subject = { studentName: studentName.value, university: university.value, degree: degree.value, year: year.value, issuerAccount: issuerAccount.value }
+    const subject = { ...formData, issuerAccount: issuerAccount.value }
     const salt = randomSalt()
     const vc = await buildVC({ issuer, subject, claim: {}, salt })
     // 2. Hash
