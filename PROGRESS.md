@@ -1,6 +1,6 @@
 # AnchorEd — Project Overview & Progress
 
-> Last updated: July 24, 2026
+> Last updated: July 25, 2026
 
 **Live app:** https://anchor-ed.vercel.app · **Repo:** https://github.com/dre10155/AnchorEd
 
@@ -8,9 +8,17 @@
 
 ## 1. What AnchorEd is
 
-AnchorEd makes academic credentials **tamper-proof and verifiable in seconds** by anchoring
+AnchorEd makes credentials **tamper-proof and verifiable in seconds** by anchoring
 them on the XRP Ledger. A diploma becomes as verifiable as a blockchain transaction —
 because it is one.
+
+**One engine, many credential types.** The anchoring engine is credential-agnostic: it
+hashes an opaque document, anchors it, and verifies it, knowing nothing about diplomas.
+A credential type (diploma, professional license, workforce credential) is a *config
+entry* — field names and labels — not a change to any cryptography or ledger logic.
+Academic diplomas are the first deployment target because their fraud is the most acute
+and best-documented; the same substrate covers professional licensing and employment
+verification. Focused execution on diplomas, platform architecture underneath.
 
 ### The problem
 
@@ -71,14 +79,16 @@ Impersonating an institution now requires compromising its actual website *and* 
 
 | Layer | Tech |
 |---|---|
-| Frontend | Vue 3 + TypeScript + Vite + Tailwind CSS |
+| Frontend | Vue 3 + TypeScript + Vite + Tailwind CSS (mobile-responsive) |
 | Ledger | XRPL Testnet (mainnet-ready), xrpl.js v4 |
 | Signing | **Xaman (XUMM) app** — QR sign flow; seeds never touch the browser |
 | Backend | Express (local dev) + Vercel serverless functions (production): Xaman payload proxy, did:web resolution proxy |
 | Hosting | Vercel (auto-deploys from `main`) |
+| Credential types | Config registry (`src/lib/credentialTypes.ts`) — diploma, professional license, workforce credential; the engine is type-blind |
 
-Pages: `/` landing · `/issue` (single + batch mint) · `/verify` (file or QR camera scan)
-· `/revoke` (burn with confirmation + reason) · `/identity` (did:web onboarding wizard)
+Pages: `/` landing · `/issue` (credential-type selector, single + batch mint) · `/verify`
+(file or QR camera scan) · `/revoke` (anchor burn or per-credential revocation) ·
+`/identity` (did:web onboarding wizard)
 
 ---
 
@@ -137,6 +147,17 @@ Also in this phase:
 development (an internal node could be replayed as a leaf with a truncated proof);
 leaves and internal nodes now use separate domain prefixes, with a regression test.
 
+### ✅ Credential-type registry — one engine, many configs (done)
+Proved the anchoring engine is credential-agnostic by extracting the hardcoded diploma
+fields into a config registry (`src/lib/credentialTypes.ts`). A credential type is now
+field names, labels, and issuer/subject nouns — the cryptography, Merkle batching, ledger
+anchoring, and did:web verification are untouched and type-blind. Three types ship
+(diploma, professional license, workforce credential), selectable on the issue page; the
+single form, batch roster parser and preview, sample CSV, ZIP manifest, and verifier
+detail panel are all config-driven, and the verifier infers a credential's type from its
+fields. 51 tests. Also shipped: **mobile responsiveness**, **whitepaper**, and
+**security policy**.
+
 ### ⏳ Phase 6 — Hardening (next)
 Explicit Testnet/Mainnet toggle · GitHub Actions CI · extend the test suite to
 canonicalization and hashing (Merkle, batch and verifier logic are already covered)
@@ -173,4 +194,6 @@ in seconds).
 **Five of six engineering phases complete, live in production on XRPL Testnet with
 wallet-signed issuance, institutional identity, credential-level revocation, and
 zero-custody batch issuance that anchors an entire graduating class in one signature —
-next: hardening (Phase 6), then mainnet with the first pilot.**
+now a credential-agnostic engine spanning diplomas, licenses, and workforce credentials,
+with a whitepaper, security policy, and mobile-responsive UI. Next: hardening (Phase 6),
+then mainnet with the first pilot.**
