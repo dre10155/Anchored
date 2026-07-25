@@ -33,8 +33,19 @@ export function randomSalt(len = 16): string {
   return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * The single anchor hash for a credential: SHA-256(salt ‖ canonicalJSON(content)).
+ *
+ * The `proof` block is excluded from the hash. A proof is an envelope wrapped
+ * around the credential *after* it is hashed (the W3C Data Integrity model), so
+ * hashing it would be circular. Excluding it means one value is computed
+ * identically at issuance, in the QR/anchor, and at verification — there is no
+ * separate inner digest to fall out of sync.
+ */
 export async function credentialHash(credential: any, salt: string): Promise<string> {
-  const canonical = JSON.stringify(canonicalize(credential));
+  const content = { ...credential };
+  delete content.proof;
+  const canonical = JSON.stringify(canonicalize(content));
   return await sha256Hex(salt + canonical);
 }
 
@@ -55,7 +66,7 @@ interface BuildVCParams {
   salt: string;
 }
 
-export async function buildVC({ issuer, subject, claim, salt }: BuildVCParams) {
+export function buildVC({ issuer, subject, claim, salt }: BuildVCParams) {
   const issuanceDate = new Date().toISOString();
   const credential = {
     '@context': ['https://www.w3.org/2018/credentials/v1'],
@@ -65,14 +76,14 @@ export async function buildVC({ issuer, subject, claim, salt }: BuildVCParams) {
     credentialSubject: subject,
     claim,
   };
-  const hash = await credentialHash(credential, salt);
+  // The proof carries the salt (the anchor hash is derivable from content + salt,
+  // so it is not duplicated here); it is excluded from credentialHash by design.
   return {
     ...credential,
     proof: {
       type: 'SaltedHashProof',
       created: issuanceDate,
       salt,
-      hash,
     },
   };
 }

@@ -318,7 +318,7 @@ async function handleSubmit() {
     }
 
     // 4. Download link and QR
-    lastDownloadUrl = makeDownloadUrlForVC({ vc, salt })
+    lastDownloadUrl = makeDownloadUrlForVC({ anchoredVersion: 2, credentialType: credType.value.id, vc, salt })
     downloadUrl.value = lastDownloadUrl
     qrUrl.value = await makeVerifierQR({ salt, hash, subject, issuerAccount: issuerAccount.value })
     success.value = true

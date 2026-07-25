@@ -96,17 +96,17 @@ For each graduate the issuer constructs a credential document in the shape of a 
     "year": 2026,
     "issuerAccount": "rNeqw…"
   },
-  "proof": { "type": "SaltedHashProof", "salt": "…", "hash": "…" }
+  "proof": { "type": "SaltedHashProof", "salt": "…" }
 }
 ```
 
 A fresh 128-bit random salt is generated per credential. The **anchor hash** is
 
 ```
-H = SHA-256( salt ‖ canonicalJSON(credential) )
+H = SHA-256( salt ‖ canonicalJSON(content) )
 ```
 
-where `canonicalJSON` recursively sorts object keys before serialization, so that semantically identical documents produce identical digests regardless of field ordering.
+where `content` is the credential with its `proof` block removed, and `canonicalJSON` recursively sorts object keys before serialization, so that semantically identical documents produce identical digests regardless of field ordering. Excluding the proof envelope from the hash (the W3C Data Integrity model) means the same value is computed at issuance, in the on-ledger anchor, and at verification — there is no second digest that can diverge.
 
 The salt is essential. Credential fields are drawn from a small space — a few thousand plausible names crossed with a few dozen degrees and a handful of years. An unsalted hash of such a document is trivially brute-forced from the public ledger, which would turn an integrity mechanism into a disclosure mechanism. The salt lives only in the graduate's copy.
 
@@ -256,7 +256,7 @@ The reference implementation is open source (MIT) and comprises:
 
 **Status.** The system is operational on the **XRP Ledger Testnet**: single and batch issuance, verification of both anchor types, both revocation mechanisms, and the identity handshake are implemented and exercised end-to-end, across three credential types (diploma, professional license, workforce credential) sharing one code path. AnchorEd publishes its own `did.json` and operates its demonstration issuer under the same handshake it asks of institutions.
 
-The cryptographic core — Merkle construction, roster processing, and ledger-scan logic — is covered by 51 unit tests, including adversarial cases: tampered leaves, tampered proofs, cross-batch proof replay, internal-node substitution, single-credential revocation within a batch, and roster parsing across credential types.
+The cryptographic core — Merkle construction, roster processing, and ledger-scan logic — is covered by 60 unit tests, including adversarial cases: tampered leaves, tampered proofs, cross-batch proof replay, internal-node substitution, single-credential revocation within a batch, roster parsing across credential types, and canonicalization and proof-independence of the anchor hash.
 
 **Not yet done:** mainnet deployment, and any production pilot. No institution has yet issued credentials of record through the system. This paper describes a working prototype with a defined security model, not a deployed production service.
 
@@ -276,7 +276,7 @@ Stated plainly, because a security document that lists no weaknesses is not a se
 
 1. **Canonicalization is not JCS.** The implementation sorts object keys recursively but does not implement RFC 8785 (JSON Canonicalization Scheme). Edge cases in number formatting and Unicode normalization could in principle produce divergent digests across implementations. Adopting JCS is the correct fix.
 2. **No cryptographic signature on the credential document.** Authority derives from the signed ledger transaction. This works but is not W3C Data Integrity conformant, and it means a credential file cannot be validated offline. Adding an Ed25519 Data Integrity proof over the credential is planned.
-3. **A redundant inner digest.** The credential's `proof` block contains a digest computed before the proof was attached, which is superfluous alongside the anchor hash. It is retained for backward compatibility with credentials already issued and is slated for removal in the v2 credential format.
+3. ~~**A redundant inner digest.**~~ *(Resolved.)* Earlier credentials carried a second digest inside the `proof` block, computed over the credential before the proof was attached and distinct from the anchor hash. The anchor hash is now computed over the credential *content only* — the `proof` envelope is excluded from hashing, in line with the W3C Data Integrity model — so a single value is produced identically at issuance, in the anchor and QR, and at verification. The inner digest has been removed.
 4. **Issuer identity rests on Web PKI and DNS.** An adversary who compromises an institution's DNS or web server can publish a `did.json` naming their own wallet. This is a strictly higher bar than creating a wallet, but it is not unconditional. Certificate Transparency monitoring and multi-source attestation would strengthen it.
 5. **Verification scans are bounded.** Very long issuer histories are truncated at a fixed limit; the verifier reports truncation rather than concluding falsely, but an indexing layer is the durable answer.
 6. **No selective disclosure.** Verification requires the full credential document. BBS+ signatures or a zero-knowledge membership proof would let a graduate prove a claim without revealing the rest.
