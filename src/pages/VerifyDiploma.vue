@@ -10,7 +10,7 @@
 
       <div class="max-w-4xl mx-auto relative z-10">
         <div class="text-center mb-8 sm:mb-12">
-          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Verify a Diploma</h1>
+          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Verify a Credential</h1>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
             Check any AnchorEd credential against the XRP Ledger
           </p>
@@ -31,7 +31,7 @@
                 Scan QR Code
               </button>
               <button type="submit" :disabled="loading || !vcFile" class="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 font-medium shadow-lg disabled:bg-gray-400 disabled:shadow-none disabled:cursor-not-allowed">
-                {{ loading ? 'Verifying...' : 'Verify Diploma' }}
+                {{ loading ? 'Verifying...' : 'Verify Credential' }}
               </button>
             </div>
           </form>
@@ -57,10 +57,10 @@
                 'text-amber-700': resultState === 'anchored' || resultState === 'revoked',
                 'text-red-700': resultState === 'invalid',
               }">
-              {{ resultState === 'verified' ? `Diploma Verified ✅ — issued by ${issuerDomain}`
+              {{ resultState === 'verified' ? `${credentialNoun} Verified ✅ — issued by ${issuerDomain}`
                 : resultState === 'anchored' ? 'Anchored — Issuer Unverified ⚠️'
-                : resultState === 'revoked' ? 'Diploma Revoked ⚠️'
-                : 'Diploma Not Verified ❌' }}
+                : resultState === 'revoked' ? `${credentialNoun} Revoked ⚠️`
+                : `${credentialNoun} Not Verified ❌` }}
             </div>
             <div class="text-sm text-gray-700 mb-4">{{ resultReason }}</div>
             <div v-if="detailRows.length" class="mt-4 p-4 bg-white rounded-lg border border-gray-200">
@@ -118,6 +118,7 @@ const progressNote = ref('')
 // so the verifier works for diplomas, licenses, workforce credentials, etc.
 const detailType = computed(() => inferCredentialType(diplomaDetails.value))
 const detailTitle = computed(() => (detailType.value ? `${detailType.value.displayName} Details` : 'Credential Details'))
+const credentialNoun = computed(() => detailType.value?.displayName || 'Credential')
 const detailRows = computed(() => {
   const subject = diplomaDetails.value
   if (!subject) return [] as { label: string; value: any }[]
@@ -137,17 +138,31 @@ function cleanAccount(account: string) {
   return acc
 }
 
-/** Load a credential from either an uploaded file or a scanned QR payload. */
+/**
+ * Load a credential from either payload shape:
+ *  - a full credential file: { vc, salt, batch? } (or a bare VC) — recompute the hash
+ *    from the document so the displayed data is bound to what we check
+ *  - a compact QR payload: { salt, hash, subject, issuerAccount, batch? } — no full VC
+ *    is present, so trust the hash carried in the QR
+ */
 async function loadCredential(data: any) {
-  const vc = data.vc || data
-  salt.value = data.salt || vc.proof?.salt || ''
-  hash.value = await credentialHash(vc, salt.value)
-  diplomaDetails.value = vc.credentialSubject || data.subject
+  const vc = data.vc || (data['@context'] && data.proof ? data : null)
+  salt.value = data.salt || vc?.proof?.salt || ''
+
+  if (vc) {
+    hash.value = await credentialHash(vc, salt.value)
+    diplomaDetails.value = vc.credentialSubject
+  } else {
+    // QR payload — the full document isn't available to rehash
+    hash.value = data.hash || ''
+    diplomaDetails.value = data.subject
+  }
+
   batch.value = data.batch?.root && Array.isArray(data.batch.proof)
     ? { root: data.batch.root, proof: data.batch.proof }
     : null
   if (!issuerAccount.value) {
-    issuerAccount.value = data.issuerAccount || data.batch?.issuerAccount || cleanAccount(vc.issuer)
+    issuerAccount.value = data.issuerAccount || data.batch?.issuerAccount || cleanAccount(vc?.issuer || '')
   }
   resultState.value = null
   resultReason.value = ''
