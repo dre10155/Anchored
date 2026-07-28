@@ -22,7 +22,7 @@ This paper describes the threat model, the construction, its security and privac
 
 ### 1.1 Fraud
 
-In January 2023 the U.S. Department of Justice announced the results of *Operation Nightingale*, a federal investigation that uncovered the sale of roughly **7,600 fraudulent nursing diplomas and transcripts** by three Florida-based nursing schools, in a scheme valued at approximately **$114 million**. Purchasers used the documents to sit for national licensing examinations, and some obtained employment in healthcare settings. The case is notable not because it was unusual in kind, but because it demonstrated scale: thousands of unqualified individuals entered a licensure pipeline that had no cryptographic means of distinguishing a genuine institutional record from a manufactured one.
+In January 2023 the U.S. Department of Justice announced the results of *Operation Nightingale*, a federal investigation that uncovered the sale of more than **7,600 fraudulent nursing diplomas and transcripts** by several South Florida nursing schools, at roughly **$10,000–$17,000 per credential**. Approximately **2,500 purchasers used the documents to pass a national licensing examination and obtain employment** in hospitals and care facilities before being caught. The case is notable not because it was unusual in kind, but because it demonstrated scale: thousands of unqualified individuals entered a licensure pipeline that had no cryptographic means of distinguishing a genuine institutional record from a manufactured one.
 
 Diploma mills — entities that sell credentials without meaningful academic requirements — are a long-standing and widely documented industry. Published estimates of the number of fraudulent U.S. degrees issued annually run into the tens of thousands or higher; these figures are estimates derived from investigative work rather than measured counts, and should be treated as indicative of magnitude, not precise.
 
@@ -297,7 +297,7 @@ Because the engine is credential-agnostic (§4.7), these properties are not spec
 
 ## References
 
-1. U.S. Department of Justice, *Federal Nursing Diploma Fraud Investigation ("Operation Nightingale")*, January 2023.
+1. U.S. Department of Justice / HHS-OIG, *Operation Nightingale* — nationwide fraudulent nursing diploma investigation, 2023. See e.g. DOJ SDFL, "Fraud Charges Filed Against 12 Defendants (Phase II)": https://www.justice.gov/usao-sdfl/pr/fraud-charges-filed-against-12-defendants-phase-ii-operation-nightingale
 2. W3C, *Verifiable Credentials Data Model*. https://www.w3.org/TR/vc-data-model/
 3. W3C, *Decentralized Identifiers (DIDs) v1.0*. https://www.w3.org/TR/did-core/
 4. W3C CCG, *did:web Method Specification*. https://w3c-ccg.github.io/did-method-web/
