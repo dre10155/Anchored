@@ -1,7 +1,7 @@
 import { Buffer } from 'buffer'
 import { getNFTokenID } from 'xrpl'
 
-/** Memo types AnchorEd writes to the ledger. */
+/** Memo types Anchored writes to the ledger. */
 export const MEMO_SINGLE = 'vc-hash'
 export const MEMO_BATCH = 'vc-batch'
 export const MEMO_REVOKE = 'vc-revoke'

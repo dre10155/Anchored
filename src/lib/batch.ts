@@ -230,7 +230,7 @@ export async function makeBatchZip({
   folder.file(
     'README.txt',
     [
-      'AnchorEd — batch credential package',
+      'Anchored — batch credential package',
       '===================================',
       '',
       `Issued:          ${issuedAt}`,

@@ -81,5 +81,5 @@ app.get('/api/did/resolve', async (req, res) => {
 })
 
 app.listen(port, () => {
-  console.log(`AnchorEd Xaman signing API listening on http://localhost:${port}`)
+  console.log(`Anchored Xaman signing API listening on http://localhost:${port}`)
 })

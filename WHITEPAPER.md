@@ -1,8 +1,8 @@
-# AnchorEd: Zero-Custody Anchoring of Academic Credentials on the XRP Ledger
+# Anchored: Zero-Custody Anchoring of Academic Credentials on the XRP Ledger
 
 **Andreas Mendes**
 Version 0.1 — July 2026
-Reference implementation: https://github.com/dre10155/AnchorEd · Live system: https://anchor-ed.vercel.app
+Reference implementation: https://github.com/dre10155/Anchored · Live system: https://anchor-ed.vercel.app
 
 ---
 
@@ -10,7 +10,7 @@ Reference implementation: https://github.com/dre10155/AnchorEd · Live system: h
 
 Academic credential fraud is a persistent public-safety problem in the United States, most visibly in healthcare, where fraudulently credentialed practitioners have reached patients. The countermeasure — verification — remains slow and costly because it depends on contacting the issuing institution or a commercial intermediary.
 
-AnchorEd is a credential verification system that anchors a salted cryptographic fingerprint of each credential on the XRP Ledger, so that any party can verify a diploma in seconds, at negligible cost, with no intermediary and no account. Three design decisions distinguish it from prior blockchain credentialing work: (1) **zero custody** — the system never holds an institution's signing key and cannot issue on its behalf; (2) **Merkle batch anchoring**, which lets an institution anchor an entire graduating class with a single signed transaction while preserving per-credential revocation; and (3) an explicit **issuer identity handshake** based on `did:web`, which separates the claim "this hash is anchored" from the far stronger claim "this credential was issued by a named institution."
+Anchored is a credential verification system that anchors a salted cryptographic fingerprint of each credential on the XRP Ledger, so that any party can verify a diploma in seconds, at negligible cost, with no intermediary and no account. Three design decisions distinguish it from prior blockchain credentialing work: (1) **zero custody** — the system never holds an institution's signing key and cannot issue on its behalf; (2) **Merkle batch anchoring**, which lets an institution anchor an entire graduating class with a single signed transaction while preserving per-credential revocation; and (3) an explicit **issuer identity handshake** based on `did:web`, which separates the claim "this hash is anchored" from the far stronger claim "this credential was issued by a named institution."
 
 Although the motivating application is academic diplomas, the anchoring engine is credential-agnostic: it operates on an opaque document and knows nothing about diplomas. A credential type — a diploma, a professional license, a workforce identity — is a configuration of which fields the document carries, not a change to the cryptography. The same protocol therefore addresses credential fraud across education, professional licensing, and employment from a single verification substrate.
 
@@ -50,7 +50,7 @@ It must do so without publishing student data, without requiring institutions to
 
 **PDF signatures and secure portals** bind a document to an institution but require the verifier to trust a specific vendor's infrastructure indefinitely. A portal that goes offline takes its credentials' verifiability with it.
 
-**Prior blockchain credentialing systems** — notably MIT's Blockcerts, the work of the Digital Credentials Consortium, and the European Blockchain Services Infrastructure (EBSI) — established the essential insight that a hash anchored on a public ledger provides durable, vendor-independent integrity. AnchorEd builds directly on that lineage. Where it differs:
+**Prior blockchain credentialing systems** — notably MIT's Blockcerts, the work of the Digital Credentials Consortium, and the European Blockchain Services Infrastructure (EBSI) — established the essential insight that a hash anchored on a public ledger provides durable, vendor-independent integrity. Anchored builds directly on that lineage. Where it differs:
 
 - Most such systems anchor **one transaction per credential**, which is economically painful on high-fee chains and pushes implementers toward custodial batching services.
 - The **issuer-identity problem is frequently underspecified**. A verifier is told a hash matches an address; whether that address belongs to a real university is often left to an out-of-band registry or to the vendor's assurance. This is precisely the gap a diploma mill exploits: anyone can create an address and anchor a self-issued credential that verifies as "on-chain."
@@ -70,10 +70,10 @@ We assume a public, permissionless ledger with immutable, timestamped, publicly 
 | T4 | Holds a valid credential from a batch | Claim membership in a batch they are not in | Merkle proof must reproduce the anchored root |
 | T5 | Knows the internal structure of a Merkle tree | Present an internal node as a credential | Domain-separated leaf and node hashing (§4.3) |
 | T6 | Holds a credential the issuer has rescinded | Continue to verify as valid | Revocation records and anchor burn (§4.5) |
-| T7 | Compromises AnchorEd's servers | Issue fraudulent credentials for every customer | **Not possible by construction** — the system holds no issuing keys (§4.6) |
+| T7 | Compromises Anchored's servers | Issue fraudulent credentials for every customer | **Not possible by construction** — the system holds no issuing keys (§4.6) |
 | T8 | Compromises an institution's wallet | Issue fraudulent credentials for that institution | Out of scope; equivalent to compromising the institution itself |
 
-T7 deserves emphasis. For a system whose purpose is fraud prevention, a service that can mint credentials on behalf of many institutions is a concentration of exactly the authority an attacker wants. AnchorEd is designed so that this component does not exist.
+T7 deserves emphasis. For a system whose purpose is fraud prevention, a service that can mint credentials on behalf of many institutions is a concentration of exactly the authority an attacker wants. Anchored is designed so that this component does not exist.
 
 ---
 
@@ -110,7 +110,7 @@ where `content` is the credential with its `proof` block removed, and `canonical
 
 The salt is essential. Credential fields are drawn from a small space — a few thousand plausible names crossed with a few dozen degrees and a handful of years. An unsalted hash of such a document is trivially brute-forced from the public ledger, which would turn an integrity mechanism into a disclosure mechanism. The salt lives only in the graduate's copy.
 
-**On the "proof" field.** AnchorEd does not attach a digital signature to the credential document. Authority comes from the ledger: the anchoring transaction is signed by the institution's XRPL wallet, so the ledger entry *is* the institution's signature over the hash. This is a deliberate simplification, and it is also a departure from the W3C Data Integrity specifications — see §8.
+**On the "proof" field.** Anchored does not attach a digital signature to the credential document. Authority comes from the ledger: the anchoring transaction is signed by the institution's XRPL wallet, so the ledger entry *is* the institution's signature over the hash. This is a deliberate simplification, and it is also a departure from the W3C Data Integrity specifications — see §8.
 
 ### 4.2 Anchoring a single credential
 
@@ -127,7 +127,7 @@ The NFT is minted with `tfBurnable` and **without** `tfTransferable`. A credenti
 
 Anchoring one transaction per credential does not scale to a graduating class — not because of transaction fees, which are negligible on XRPL, but because **each transaction requires a human signature**. A registrar cannot approve 300 wallet prompts.
 
-The obvious industry answer is delegation: the institution authorizes a service to mint on its behalf. AnchorEd rejects this (T7). Instead, the class is anchored as a single Merkle tree.
+The obvious industry answer is delegation: the institution authorizes a service to mint on its behalf. Anchored rejects this (T7). Instead, the class is anchored as a single Merkle tree.
 
 Given credential hashes `H₁ … Hₙ`, define:
 
@@ -154,7 +154,7 @@ Three details are load-bearing:
 
 A hash match proves that *some* wallet anchored a document. It does not prove that wallet belongs to a university. Closing that gap requires binding an on-ledger identifier to an off-ledger institutional identity that the public already trusts. The strongest such identifier available is the institution's **domain name**.
 
-AnchorEd requires a bidirectional proof:
+Anchored requires a bidirectional proof:
 
 - **Domain → wallet.** The institution publishes a DID document at `https://<domain>/.well-known/did.json` (the `did:web` method) listing its official XRPL address as a verification method. Only a party controlling the institution's web infrastructure can do this.
 - **Wallet → domain.** The institution signs an `AccountSet` transaction writing that same domain into the account's on-ledger `Domain` field. Only a party controlling the wallet's keys can do this.
@@ -176,7 +176,7 @@ The amber "anchored but unverified" state is the diploma-mill case made legible.
 
 Degrees are rescinded: academic misconduct, admissions fraud, findings that emerge years later. A credential system without revocation is, in this narrow respect, *worse* than paper, because it makes the discredited claim permanently and cheaply verifiable.
 
-AnchorEd supports two mechanisms:
+Anchored supports two mechanisms:
 
 - **Anchor burn** (`NFTokenBurn`) — removes the anchor. For a single credential this revokes that credential; for a batch it revokes the entire class. Appropriate when a whole cohort's records are invalidated.
 - **Revocation record** — the issuer signs a no-op `AccountSet` carrying a memo of type `vc-revoke` with payload `{"hash": "<H>"}`. This revokes exactly one credential and leaves the rest of its batch valid. It is cheap (one base-fee transaction), publicly auditable, and cryptographically attributable to the issuer.
@@ -185,7 +185,7 @@ Revocation is monotonic and non-repudiable: an issuer can add a revocation but c
 
 ### 4.6 Verification algorithm
 
-Verification requires no account, no API key, and no contact with AnchorEd or the institution — only a public XRPL node and, for the identity check, an HTTPS request to the institution's own domain.
+Verification requires no account, no API key, and no contact with Anchored or the institution — only a public XRPL node and, for the identity check, an HTTPS request to the institution's own domain.
 
 ```
 INPUT: credential document C, salt s, optional (root R, proof P), issuer address A
@@ -251,10 +251,10 @@ The reference implementation is open source (MIT) and comprises:
 |---|---|
 | Vue 3 + TypeScript SPA | Issuance, verification, revocation, and institution-onboarding interfaces |
 | `xrpl.js` v4 | Ledger interaction |
-| Xaman (XUMM) | Wallet signing — the institution signs on their own device; keys never enter the browser or reach any AnchorEd server |
+| Xaman (XUMM) | Wallet signing — the institution signs on their own device; keys never enter the browser or reach any Anchored server |
 | Serverless functions | Two stateless proxies: creating Xaman sign requests, and fetching `did.json` (to avoid browser CORS restrictions on institutional domains). Neither handles credential data or keys. |
 
-**Status.** The system is operational on the **XRP Ledger Testnet**: single and batch issuance, verification of both anchor types, both revocation mechanisms, and the identity handshake are implemented and exercised end-to-end, across three credential types (diploma, professional license, workforce credential) sharing one code path. AnchorEd publishes its own `did.json` and operates its demonstration issuer under the same handshake it asks of institutions.
+**Status.** The system is operational on the **XRP Ledger Testnet**: single and batch issuance, verification of both anchor types, both revocation mechanisms, and the identity handshake are implemented and exercised end-to-end, across three credential types (diploma, professional license, workforce credential) sharing one code path. Anchored publishes its own `did.json` and operates its demonstration issuer under the same handshake it asks of institutions.
 
 The cryptographic core — Merkle construction, roster processing, and ledger-scan logic — is covered by 60 unit tests, including adversarial cases: tampered leaves, tampered proofs, cross-batch proof replay, internal-node substitution, single-credential revocation within a batch, roster parsing across credential types, and canonicalization and proof-independence of the anchor hash.
 
@@ -287,9 +287,9 @@ Stated plainly, because a security document that lists no weaknesses is not a se
 
 ## 9. Conclusion
 
-Credential fraud persists because verification is expensive and the credential itself carries no proof of origin. AnchorEd addresses both: a salted fingerprint anchored on a public ledger makes verification free, instant, and independent of any intermediary, while a domain-bound issuer identity turns "this hash exists on-chain" into the materially stronger claim "this credential was issued by a named institution."
+Credential fraud persists because verification is expensive and the credential itself carries no proof of origin. Anchored addresses both: a salted fingerprint anchored on a public ledger makes verification free, instant, and independent of any intermediary, while a domain-bound issuer identity turns "this hash exists on-chain" into the materially stronger claim "this credential was issued by a named institution."
 
-The two design choices we consider most consequential are negative ones. **AnchorEd holds no institutional keys**, so compromising it cannot produce a single fraudulent credential. And **it refuses to display a green checkmark for an unbound issuer**, because a verification system that validates anything a diploma mill anchors has inverted its own purpose.
+The two design choices we consider most consequential are negative ones. **Anchored holds no institutional keys**, so compromising it cannot produce a single fraudulent credential. And **it refuses to display a green checkmark for an unbound issuer**, because a verification system that validates anything a diploma mill anchors has inverted its own purpose.
 
 Because the engine is credential-agnostic (§4.7), these properties are not specific to diplomas. The same substrate verifies professional licenses, workforce identities, and other institutional credentials without change to its cryptography or trust model — a single verification layer for a class of fraud that today is fought, where it is fought at all, one document type and one institution at a time.
 

@@ -1,14 +1,14 @@
-# AnchorEd — Project Overview & Progress
+# Anchored — Project Overview & Progress
 
 > Last updated: July 25, 2026
 
-**Live app:** https://anchor-ed.vercel.app · **Repo:** https://github.com/dre10155/AnchorEd
+**Live app:** https://anchor-ed.vercel.app · **Repo:** https://github.com/dre10155/Anchored
 
 ---
 
-## 1. What AnchorEd is
+## 1. What Anchored is
 
-AnchorEd makes credentials **tamper-proof and verifiable in seconds** by anchoring
+Anchored makes credentials **tamper-proof and verifiable in seconds** by anchoring
 them on the XRP Ledger. A diploma becomes as verifiable as a blockchain transaction —
 because it is one.
 
@@ -40,7 +40,7 @@ Credential fraud is a public-safety crisis in the United States:
 2. **Hold** — The graduate owns their credential (JSON + QR). The salt prevents
    dictionary attacks against the on-ledger hash.
 3. **Verify** — Any employer, licensing board, or agency scans the QR (or uploads the
-   file). AnchorEd recomputes the salted hash and checks it against NFTs minted by the
+   file). Anchored recomputes the salted hash and checks it against NFTs minted by the
    issuer's address. Seconds, fractions of a cent, no intermediary.
 
 ### Trust model (the four verdicts)
@@ -54,7 +54,7 @@ Credential fraud is a public-safety crisis in the United States:
 
 ### The did:web identity handshake
 
-Nothing on a bare ledger binds a wallet to a real university, so AnchorEd requires a
+Nothing on a bare ledger binds a wallet to a real university, so Anchored requires a
 **two-way proof**:
 
 - **Domain → wallet:** the institution hosts a DID document at
@@ -115,7 +115,7 @@ gained the amber **REVOKED** state.
 Two-way domain/wallet handshake described above. New `/identity` onboarding wizard
 (generates the did.json, signs the `AccountSet`, self-checks the handshake). Verifier
 distinguishes 🟢 verified-identity from 🟡 anchored-but-unverified.
-AnchorEd dogfoods this: `anchor-ed.vercel.app/.well-known/did.json` is live, listing the
+Anchored dogfoods this: `anchor-ed.vercel.app/.well-known/did.json` is live, listing the
 demo issuer wallet.
 
 ### ✅ Deployed to production (done)
@@ -127,9 +127,9 @@ API + SPA routing + payload creation smoke-tested against production.
 Merkle tree and anchored by a *single* signed transaction carrying only the root. Each
 graduate receives a credential plus a log2(n) membership proof, packaged with QR codes
 and a manifest into a downloadable ZIP. A 5,000-student class costs one transaction
-instead of 5,000, and AnchorEd never holds a key or mints on anyone's behalf.
+instead of 5,000, and Anchored never holds a key or mints on anyone's behalf.
 
-The alternative considered — delegating mint authority to an AnchorEd service wallet —
+The alternative considered — delegating mint authority to an Anchored service wallet —
 was rejected: a hot key with standing authority to issue credentials for every customer
 is exactly the wrong failure mode for an anti-fraud product.
 
@@ -173,8 +173,8 @@ announcement.
 
 **Business model:** institutions pay to issue (SaaS subscription and/or per-credential);
 **verification stays free forever** — every free verification is a reason the next
-institution must issue through AnchorEd. Later: a paid verification API for
-HR/background-check platforms (incumbents charge $10–30 and take days; AnchorEd answers
+institution must issue through Anchored. Later: a paid verification API for
+HR/background-check platforms (incumbents charge $10–30 and take days; Anchored answers
 in seconds).
 
 **Exposure sequence (in progress):**

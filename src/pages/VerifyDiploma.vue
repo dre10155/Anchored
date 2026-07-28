@@ -12,7 +12,7 @@
         <div class="text-center mb-8 sm:mb-12">
           <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Verify a Credential</h1>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-            Check any AnchorEd credential against the XRP Ledger
+            Check any Anchored credential against the XRP Ledger
           </p>
         </div>
 

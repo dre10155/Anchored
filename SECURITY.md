@@ -1,6 +1,6 @@
 # Security Policy
 
-AnchorEd exists to prevent credential fraud. A vulnerability here could allow a forged
+Anchored exists to prevent credential fraud. A vulnerability here could allow a forged
 credential to verify as genuine, or a valid credential to be wrongly rejected — so
 security reports are genuinely welcome and will be taken seriously.
 
@@ -9,7 +9,7 @@ security reports are genuinely welcome and will be taken seriously.
 **Please do not open a public GitHub issue for security problems.** Public disclosure
 before a fix exists puts any institution relying on the system at risk.
 
-Instead, email **andreas.mendes94@gmail.com** with `[AnchorEd Security]` in the subject.
+Instead, email **andreas.mendes94@gmail.com** with `[Anchored Security]` in the subject.
 
 Helpful to include, where you can:
 
@@ -73,9 +73,9 @@ reported; new reports that sharpen or exploit them are still valuable.
 
 ## Design notes relevant to security researchers
 
-- AnchorEd **holds no institutional signing keys**. Issuers sign on their own devices via
+- Anchored **holds no institutional signing keys**. Issuers sign on their own devices via
   Xaman; the server side is two stateless proxies (Xaman sign requests, `did.json`
-  fetching) that never touch credential data or keys. A full compromise of AnchorEd's
+  fetching) that never touch credential data or keys. A full compromise of Anchored's
   infrastructure should not permit issuing a single credential — reports demonstrating
   otherwise are the highest-value findings against this project.
 - No personal data is written to the ledger; only salted SHA-256 digests.

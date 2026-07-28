@@ -1,6 +1,6 @@
 {
   "name": "anchored",
-  "description": "AnchorEd — tamper-proof academic credentials anchored on the XRP Ledger. Issue and verify diplomas in seconds.",
+  "description": "Anchored — tamper-proof academic credentials anchored on the XRP Ledger. Issue and verify diplomas in seconds.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

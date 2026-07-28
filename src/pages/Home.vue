@@ -14,7 +14,7 @@
         </h1>
         <p class="text-xl text-gray-300 max-w-2xl mx-auto mb-4">
           Credential fraud costs the United States billions and puts patients, employers,
-          and institutions at risk. AnchorEd makes a diploma as verifiable as a blockchain
+          and institutions at risk. Anchored makes a diploma as verifiable as a blockchain
           transaction — because it is one.
         </p>
         <p class="text-gray-400 max-w-2xl mx-auto mb-10">

@@ -21,7 +21,7 @@ const links = [
       <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <RouterLink to="/" class="flex items-center gap-2 text-white font-bold text-lg sm:text-xl shrink-0">
           <span class="text-primary-blue text-2xl">&#9875;</span>
-          Anchor<span class="text-primary-blue">Ed</span>
+          <span>Anchor<span class="text-primary-blue">ed</span></span>
         </RouterLink>
 
         <!-- Desktop -->
@@ -68,7 +68,7 @@ const links = [
 
     <footer class="border-t border-white/10 py-6">
       <div class="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
-        AnchorEd — credentials anchored on the XRP Ledger · Testnet
+        Anchored — credentials anchored on the XRP Ledger · Testnet
       </div>
     </footer>
   </div>

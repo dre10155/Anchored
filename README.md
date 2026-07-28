@@ -1,4 +1,4 @@
-# ⚓ AnchorEd
+# ⚓ Anchored
 
 **Tamper-proof academic credentials, anchored on the XRP Ledger.**
 
@@ -11,7 +11,7 @@ fake nursing diplomas sold in Florida — fraudulent nurses reached real patient
 sell an estimated 100,000+ fake degrees in the US every year, while legitimate verification
 still means days of phone calls and per-check fees.
 
-AnchorEd makes a diploma as verifiable as a blockchain transaction — because it is one.
+Anchored makes a diploma as verifiable as a blockchain transaction — because it is one.
 
 ## How it works
 
@@ -22,7 +22,7 @@ AnchorEd makes a diploma as verifiable as a blockchain transaction — because i
 2. **Hold** — The graduate owns their credential (JSON + QR). The salt in the credential
    prevents dictionary attacks against the on-ledger hash.
 3. **Verify** — Any employer, licensing board, or agency scans the QR (or uploads the file).
-   AnchorEd recomputes the salted hash and checks it against NFTs minted by the issuer's
+   Anchored recomputes the salted hash and checks it against NFTs minted by the issuer's
    address on the public ledger. Match → authentic. Tampered → fail. Seconds, fractions of
    a cent, no intermediary.
 
@@ -59,7 +59,7 @@ Create and fund a testnet issuer wallet at the [XRPL faucet](https://xrpl.org/re
 
 ## Institution onboarding (did:web identity)
 
-AnchorEd distinguishes **anchored** credentials (hash matches an NFT) from **verified**
+Anchored distinguishes **anchored** credentials (hash matches an NFT) from **verified**
 credentials (the issuing wallet provably belongs to a real institution). To get the green
 "issued by your-domain.edu" badge, an institution completes a two-way handshake:
 
