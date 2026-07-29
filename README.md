@@ -78,4 +78,6 @@ in favor of Xaman signing before any mainnet deployment. Never enter a mainnet s
 
 ## License
 
-MIT © Andreas Mendes
+[Business Source License 1.1](LICENSE) © Andreas Mendes — source-available. Free to view, self-host,
+and run for your own credential issuance/verification; production use as a competing hosted
+service to third parties requires a commercial license. Converts to Apache-2.0 on 2030-07-28.

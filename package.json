@@ -4,7 +4,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "license": "MIT",
+  "license": "BUSL-1.1",
   "author": "Andreas Mendes",
   "scripts": {
     "dev": "concurrently -n web,api -c blue,green \"npm:dev:client\" \"npm:dev:server\"",

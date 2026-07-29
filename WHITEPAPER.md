@@ -245,7 +245,8 @@ Two residual exposures should be stated plainly:
 
 ## 6. Implementation
 
-The reference implementation is open source (MIT) and comprises:
+The reference implementation is source-available (Business Source License 1.1, converting to
+Apache-2.0 in 2030) and comprises:
 
 | Component | Role |
 |---|---|
