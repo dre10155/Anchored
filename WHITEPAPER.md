@@ -66,11 +66,11 @@ We assume a public, permissionless ledger with immutable, timestamped, publicly 
 |---|---|---|---|
 | T1 | Holds a genuine credential, edits a field (e.g. degree level) | Forge an upgrade | Anchor hash is over the whole document; any edit changes it |
 | T2 | Observes the public ledger | Learn who graduated with what | Only salted hashes are published; salt blocks dictionary attack over a low-entropy credential space |
-| T3 | Creates their own XRPL wallet | Issue credentials in a university's name | did:web two-way handshake (§4.4); unbound issuers are surfaced to the verifier as unverified |
+| T3 | Creates their own XRPL wallet | Issue credentials in a university's name | did:web two-way handshake (§4.5); unbound issuers are surfaced to the verifier as unverified |
 | T4 | Holds a valid credential from a batch | Claim membership in a batch they are not in | Merkle proof must reproduce the anchored root |
 | T5 | Knows the internal structure of a Merkle tree | Present an internal node as a credential | Domain-separated leaf and node hashing (§4.3) |
-| T6 | Holds a credential the issuer has rescinded | Continue to verify as valid | Revocation records and anchor burn (§4.5) |
-| T7 | Compromises Anchored's servers | Issue fraudulent credentials for every customer | **Not possible by construction** — the system holds no issuing keys (§4.6) |
+| T6 | Holds a credential the issuer has rescinded | Continue to verify as valid | Revocation records and anchor burn (§4.6) |
+| T7 | Compromises Anchored's servers | Issue fraudulent credentials for every customer | **Not possible by construction** — the system holds no issuing keys (§4.7) |
 | T8 | Compromises an institution's wallet | Issue fraudulent credentials for that institution | Out of scope; equivalent to compromising the institution itself |
 
 T7 deserves emphasis. For a system whose purpose is fraud prevention, a service that can mint credentials on behalf of many institutions is a concentration of exactly the authority an attacker wants. Anchored is designed so that this component does not exist.
@@ -150,7 +150,31 @@ Three details are load-bearing:
 
 **Cost.** For a class of 5,000, individual anchoring requires 5,000 signed transactions and — because each NFT occupies ledger state — roughly 31 XRP of owner reserve locked in the institution's account (~157 `NFTokenPage` objects at 0.2 XRP each, 32 NFTs per page). Merkle anchoring requires **one** transaction and one page, for 0.2 XRP of reserve. Transaction fees in both cases are dominated by the base fee of 10 drops (0.00001 XRP), a small fraction of a U.S. cent per transaction.
 
-### 4.4 Issuer identity: the did:web handshake
+### 4.4 Scale and throughput
+
+Because a batch of any size resolves to a single 32-byte root, ledger cost is a function of the number of *batches*, not the number of credentials. The following are measured against the reference implementation (Node 22, Apple Silicon), building complete trees with per-credential salts, W3C-shaped credential documents, and full proof generation:
+
+| Class size | Tree build | Proof length | Verify one credential |
+|---|---|---|---|
+| 1,000 | 65 ms | 10 hashes | ~1 ms |
+| 5,000 | 264 ms | 13 hashes | <1 ms |
+| 10,000 | 514 ms | 14 hashes | <1 ms |
+
+Build time is linear in class size and proof length grows logarithmically, so a national-scale cohort remains a sub-second operation on commodity hardware. Verification is independent of class size: a graduate from a 10,000-credential batch is checked with 14 hash operations.
+
+Projecting to sustained national volume — 10,000 credentials issued per day — the difference between the two designs is not incremental:
+
+| | Individual anchoring | Merkle batch anchoring |
+|---|---|---|
+| Transactions/day | 10,000 | 1 (per issuing batch) |
+| Ledger fees/year | ~US$37 | **under US$0.10** |
+| Owner reserve accrued/day | ~833 XRP | ~0.2 XRP |
+
+The reserve figure is the operative constraint. Individual anchoring would require an institution to lock hundreds of XRP of capital *per day* in ledger reserves — economically prohibitive at national scale, and the reason systems anchoring one transaction per credential tend toward custodial batching services. Merkle anchoring reduces locked capital by roughly three orders of magnitude while preserving per-credential revocation (§4.6) and the zero-custody property (§3, T7).
+
+**Amendment independence.** This construction requires no pending or optional protocol features. The XRP Ledger's proposed Batch amendment (XLS-56), which would allow multiple inner transactions to be submitted atomically, was blocked from production networks in February 2026 after a signature-validation vulnerability was identified in its signer-verification logic, and remains unavailable pending a rewrite. Anchored's batching is performed entirely in the credential layer and depends on nothing beyond `NFTokenMint`, which has been stable since XLS-20. If Batch is subsequently activated it would offer a modest additional benefit — atomically anchoring several institutions' roots in one transaction — but the system's scaling properties do not rely on it.
+
+### 4.5 Issuer identity: the did:web handshake
 
 A hash match proves that *some* wallet anchored a document. It does not prove that wallet belongs to a university. Closing that gap requires binding an on-ledger identifier to an off-ledger institutional identity that the public already trusts. The strongest such identifier available is the institution's **domain name**.
 
@@ -172,7 +196,7 @@ The verifier reflects this distinction in its output rather than hiding it:
 
 The amber "anchored but unverified" state is the diploma-mill case made legible. A system that reported this as a green checkmark — as a naive hash-match implementation would — would be actively misleading.
 
-### 4.5 Revocation
+### 4.6 Revocation
 
 Degrees are rescinded: academic misconduct, admissions fraud, findings that emerge years later. A credential system without revocation is, in this narrow respect, *worse* than paper, because it makes the discredited claim permanently and cheaply verifiable.
 
@@ -183,7 +207,7 @@ Anchored supports two mechanisms:
 
 Revocation is monotonic and non-repudiable: an issuer can add a revocation but cannot retract one, since the ledger record is permanent.
 
-### 4.6 Verification algorithm
+### 4.7 Verification algorithm
 
 Verification requires no account, no API key, and no contact with Anchored or the institution — only a public XRPL node and, for the identity check, an HTTPS request to the institution's own domain.
 
@@ -208,9 +232,9 @@ Step 2 is deliberately ordered before any network access: a forged credential is
 
 Step 3 is paginated. An earlier implementation read only the most recent 100 transactions, which caused valid credentials from any active institution to fail verification — a silent false negative that is arguably worse than a false positive, because it erodes trust in genuine credentials. The current implementation follows pagination markers to a bounded limit and reports explicitly when a scan is truncated rather than returning a negative result.
 
-### 4.7 A credential-agnostic engine
+### 4.8 A credential-agnostic engine
 
-Nothing in §4.1–4.6 refers to a diploma. The document hashed in §4.1 is an arbitrary JSON object; the Merkle tree of §4.3 combines opaque digests; the identity handshake of §4.4 binds a *domain* to a *wallet* irrespective of what that domain issues; the verification algorithm of §4.6 recomputes a hash and matches it against a ledger anchor. "Diploma" appears nowhere in the trust-bearing path.
+Nothing in §4.1–4.7 refers to a diploma. The document hashed in §4.1 is an arbitrary JSON object; the Merkle tree of §4.3 combines opaque digests; the identity handshake of §4.5 binds a *domain* to a *wallet* irrespective of what that domain issues; the verification algorithm of §4.7 recomputes a hash and matches it against a ledger anchor. "Diploma" appears nowhere in the trust-bearing path.
 
 A **credential type** is therefore a description of the document's fields, not a variant of the protocol:
 
@@ -292,7 +316,7 @@ Credential fraud persists because verification is expensive and the credential i
 
 The two design choices we consider most consequential are negative ones. **Anchored holds no institutional keys**, so compromising it cannot produce a single fraudulent credential. And **it refuses to display a green checkmark for an unbound issuer**, because a verification system that validates anything a diploma mill anchors has inverted its own purpose.
 
-Because the engine is credential-agnostic (§4.7), these properties are not specific to diplomas. The same substrate verifies professional licenses, workforce identities, and other institutional credentials without change to its cryptography or trust model — a single verification layer for a class of fraud that today is fought, where it is fought at all, one document type and one institution at a time.
+Because the engine is credential-agnostic (§4.8), these properties are not specific to diplomas. The same substrate verifies professional licenses, workforce identities, and other institutional credentials without change to its cryptography or trust model — a single verification layer for a class of fraud that today is fought, where it is fought at all, one document type and one institution at a time.
 
 ---
 
@@ -309,5 +333,8 @@ Because the engine is credential-agnostic (§4.7), these properties are not spec
 9. MIT Media Lab, *Blockcerts: The Open Standard for Blockchain Credentials*. https://www.blockcerts.org/
 10. Digital Credentials Consortium. https://digitalcredentials.mit.edu/
 11. European Commission, *European Blockchain Services Infrastructure (EBSI)*.
+12. XRP Ledger, *NFT Reserve Requirements*. https://xrpl.org/docs/concepts/tokens/nfts/reserve-requirements
+13. XRP Ledger, *Reserves*. https://xrpl.org/docs/concepts/accounts/reserves
+14. XRPL Foundation / RippleX, *rippled 3.1.1 release* — Batch (XLS-56) and `fixBatchInnerSigs` marked unsupported following the February 2026 signer-verification vulnerability disclosure.
 
 *Figures attributed to investigative estimates (§1.1) are cited as orders of magnitude. Readers evaluating this work for funding, procurement, or policy purposes are encouraged to verify primary sources independently.*
