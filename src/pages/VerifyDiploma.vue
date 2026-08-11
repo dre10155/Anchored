@@ -19,12 +19,25 @@
         <div class="bg-white rounded-xl shadow-xl p-5 sm:p-8 border border-gray-200">
           <form @submit.prevent="handleVerify" class="space-y-6">
             <div>
-              <label class="block font-medium text-brand-black mb-2">Issuer Account</label>
-              <input v-model="issuerAccount" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" required placeholder="r..." />
-            </div>
-            <div>
-              <label class="block font-medium text-brand-black mb-2">Upload VC File</label>
+              <label class="block font-medium text-brand-black mb-2">Upload the credential file</label>
               <input type="file" @change="handleFileUpload" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-blue file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-all file:duration-200" accept=".json" />
+              <p class="text-xs text-gray-500 mt-2">
+                The <span class="font-mono">.json</span> file the graduate was given — or scan their QR code. Nothing else needed.
+              </p>
+            </div>
+
+            <!-- Auto-filled from the credential. Only shown once a file is loaded, and only
+                 editable for the rare case of verifying against a different issuer address. -->
+            <details v-if="issuerAccount" class="group">
+              <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700 select-none">
+                Issuer account: <span class="font-mono">{{ issuerAccount }}</span> — read from the credential
+              </summary>
+              <input v-model="issuerAccount" class="mt-2 w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="r..." />
+            </details>
+            <div v-else-if="vcFile">
+              <label class="block font-medium text-brand-black mb-2">Issuer Account</label>
+              <input v-model="issuerAccount" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="r..." />
+              <p class="text-xs text-amber-700 mt-1">This credential doesn't name its issuer — enter the address to verify against.</p>
             </div>
             <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button type="button" @click="showQrScanner = true" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg">
@@ -161,8 +174,17 @@ async function loadCredential(data: any) {
   batch.value = data.batch?.root && Array.isArray(data.batch.proof)
     ? { root: data.batch.root, proof: data.batch.proof }
     : null
+  // Every credential we issue carries its own issuer address, so a verifier
+  // should never have to type one. Checked in order of reliability; the
+  // credentialSubject copy is what single-mint files carry, and vc.issuer is
+  // only usable when it is a raw address rather than a did:web identifier.
   if (!issuerAccount.value) {
-    issuerAccount.value = data.issuerAccount || data.batch?.issuerAccount || cleanAccount(vc?.issuer || '')
+    issuerAccount.value =
+      cleanAccount(data.issuerAccount || '') ||
+      cleanAccount(data.batch?.issuerAccount || '') ||
+      cleanAccount(vc?.credentialSubject?.issuerAccount || '') ||
+      cleanAccount(data.subject?.issuerAccount || '') ||
+      cleanAccount(vc?.issuer || '')
   }
   resultState.value = null
   resultReason.value = ''
