@@ -1,5 +1,7 @@
 # ⚓ Anchored
 
+[![CI](https://github.com/dre10155/Anchored/actions/workflows/ci.yml/badge.svg)](https://github.com/dre10155/Anchored/actions/workflows/ci.yml)
+
 **Tamper-proof academic credentials, anchored on the XRP Ledger.**
 
 **🔗 Live app: [anchor-ed.vercel.app](https://anchor-ed.vercel.app)** · Beta on XRPL Testnet

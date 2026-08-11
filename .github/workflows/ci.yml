@@ -1,0 +1,46 @@
+name: CI
+
+# Run on every push to main and on every pull request, so a broken build or a
+# failing cryptographic test is caught before it can reach the deployed app.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # `npm ci` installs exactly what package-lock.json specifies — a
+      # reproducible install, unlike `npm install` which may resolve newer
+      # versions and mask a break.
+      - name: Install dependencies
+        run: npm ci
+
+      # Type-checks the Vue/TS app (vue-tsc) and produces a production build.
+      # Catches type errors and build regressions.
+      - name: Type-check and build
+        run: npm run build
+
+      # Type-checks the Express dev server and the Vercel serverless functions,
+      # which are outside the app's tsconfig and so are not covered above.
+      - name: Type-check server and API
+        run: npx tsc -p tsconfig.server.json --noEmit
+
+      # The cryptographic core: Merkle construction (including the
+      # second-preimage regression test), roster parsing, ledger-scan and
+      # revocation logic, canonicalization and hashing.
+      - name: Run tests
+        run: npm test
