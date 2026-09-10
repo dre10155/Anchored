@@ -1,12 +1,14 @@
 {
-  "@context": ["https://www.w3.org/ns/did/v1"],
+  "@context": [
+    "https://www.w3.org/ns/did/v1"
+  ],
   "id": "did:web:anchor-ed.vercel.app",
   "verificationMethod": [
     {
       "id": "did:web:anchor-ed.vercel.app#xrpl-issuer",
       "type": "EcdsaSecp256k1RecoveryMethod2020",
       "controller": "did:web:anchor-ed.vercel.app",
-      "blockchainAccountId": "xrpl:0:rNeqwL8sjHvi4TndDCrYqYDh1dQKNBekhv"
+      "blockchainAccountId": "xrpl:0:rUfojaeJiZPX58ZGdxtP6VpnGHdF6CnLd1"
     }
   ],
   "service": [
