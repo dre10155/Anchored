@@ -272,7 +272,7 @@ const handleVerify = async () => {
       resultState.value = 'revoked'
       resultReason.value = batch.value
         ? `The batch anchoring this credential was issued${issuedOn} but has since been burned by the issuer — the whole batch is REVOKED.`
-        : `This diploma was issued${issuedOn} but has since been REVOKED by the issuer. NFT ID: ${scan.anchor.nftId}`
+        : `This credential was issued${issuedOn} but has since been REVOKED by the issuer. NFT ID: ${scan.anchor.nftId}`
       return
     }
 
