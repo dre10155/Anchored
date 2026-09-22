@@ -156,6 +156,91 @@ function loadSaved(): string[] {
 
 Validate with the same pattern used elsewhere: `/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/`.
 
+### Connect with Xaman, instead of typing
+
+Typing a wallet address is acceptable but not what was asked for. The
+Vice-President described *"when they are logged into their profile they have a
+dashboard"* — identity, not an address field. A registrar also only has to
+mistype an address once to stop trusting the page.
+
+Xaman supports a **SignIn** payload: the same QR flow already used for minting,
+but it signs nothing and simply proves control of a wallet. The user scans, and
+the page learns their address. That gives better UX *and* real proof of control,
+without building accounts, passwords or sessions — so it can stand in for most
+of Module 3.
+
+**Structure the page for this from the start.** Put the address behind a small
+composable that either source can populate, rather than binding it straight to a
+text input:
+
+```ts
+// src/composables/useIssuerAddress.ts
+// The wallet the dashboard is showing. Populated by manual entry or by a Xaman
+// SignIn; the page should not care which.
+export function useIssuerAddress() {
+  const address = ref('')
+  const connectedViaXaman = ref(false)   // true = control proven, not just claimed
+  // ...load/save the remembered list here too
+  return { address, connectedViaXaman, saved, setManual, connect, disconnect }
+}
+```
+
+Build manual entry first and get the scan working. Add `connect()` after.
+
+#### Two things currently block SignIn
+
+Both are small, and both will look like bugs if hit without warning.
+
+**1. The payload endpoint rejects it.** `api/xaman/payload.ts:11` requires both
+`TransactionType` and `Account`:
+
+```ts
+if (!txjson || typeof txjson !== 'object' || !txjson.TransactionType || !txjson.Account) {
+```
+
+A SignIn payload is `{ TransactionType: 'SignIn' }` with **no** `Account` — that
+is the point, since the account is what you are trying to learn. Relax the check
+to allow SignIn specifically, rather than dropping the `Account` requirement for
+everything:
+
+```ts
+const isSignIn = txjson?.TransactionType === 'SignIn'
+if (!txjson || typeof txjson !== 'object' || !txjson.TransactionType || (!isSignIn && !txjson.Account)) {
+```
+
+Make the same change in `server/index.ts`, or the dev server and production will
+disagree.
+
+**2. `signViaXaman` demands a txid.** It throws when `resolution.txid` is
+missing, and a SignIn produces no transaction — so it would fail even after a
+successful scan. Add a sibling function to `useXamanSign` rather than loosening
+the existing one, which is load-bearing for minting:
+
+```ts
+/** Prove control of a wallet. Returns the address; signs no transaction. */
+async function signInViaXaman(): Promise<string> {
+  // same modal setup as signViaXaman
+  const payload = await createXamanPayload({ TransactionType: 'SignIn' })
+  // ...
+  const resolution = await waitForXamanSignature(payload.uuid)
+  if (!resolution.signed || !resolution.account) throw new Error('Sign-in was not completed.')
+  return resolution.account
+}
+```
+
+`account` is already returned by both status endpoints
+(`api/xaman/payload/[uuid].ts` and the dev server), so nothing else needs
+changing there.
+
+#### What it does and does not prove
+
+A completed SignIn proves the person controls that wallet **at that moment**. It
+is not a session, there is no expiry, and nothing is stored server-side. Treat
+it as a convenience plus a trust signal — show "connected" in the UI — not as
+authorisation for anything sensitive. The dashboard is read-only over public
+data, so that is a fair trade. Anything that writes must still be signed in
+Xaman per action.
+
 ### Fetching
 
 ```ts
@@ -229,6 +314,8 @@ rather than inventing one.
 
 - [ ] `/dashboard` route registered and linked in the nav
 - [ ] Entering a wallet lists its anchors, newest first
+- [ ] "Connect with Xaman" populates the address without typing, and the page
+      shows that control was proven rather than merely claimed
 - [ ] **Revoked credentials appear and are marked revoked** — the whole point
 - [ ] A burn recorded before its mint in history still marks the anchor revoked
 - [ ] Totals for anchored / live / revoked
@@ -252,6 +339,9 @@ rather than inventing one.
 - **Add write actions.** Revoking stays on `/revoke`, behind its confirmation
   dialog. This page signs nothing.
 - **Ask for a seed.** Ever. Signing happens in Xaman, on the user's phone.
+- **Treat a Xaman SignIn as authorisation.** It proves control at that moment,
+  not a session. Read-only viewing is a fair use of it; anything that writes
+  must still be signed per action.
 - **Expand a batch into per-student rows.** The ledger holds one anchor for the
   whole class; the roster belongs to the institution, not to us.
 
