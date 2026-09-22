@@ -2,6 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { xumm } from './xumm'
+import { handleSendCredentialEmail } from '../api/email/send'
 
 const app = express()
 app.use(cors())
@@ -77,6 +78,16 @@ app.get('/api/did/resolve', async (req, res) => {
     res.json({ url, document })
   } catch (err: any) {
     res.status(502).json({ error: `Could not fetch ${url}: ${err?.message || String(err)}` })
+  }
+})
+
+// Emails an issued credential to its holder. Delegates to the same handler the
+// Vercel function uses, so dev and production validate identically.
+app.post('/api/email/send', async (req, res) => {
+  try {
+    res.json(await handleSendCredentialEmail(req.body))
+  } catch (err: any) {
+    res.status(Number(err?.statusCode) || 500).json({ error: err?.message || String(err) })
   }
 })
 
