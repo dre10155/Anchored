@@ -57,6 +57,20 @@
                 required
               />
             </div>
+             <div>
+              <label class="block font-medium text-brand-black text-sm mb-2">
+                {{ credType.displayName }} recipient email (optional)
+              </label>
+              <input
+                v-model="holderEmail"
+                type="email"
+                class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
+                placeholder="graduate@example.com"
+              />
+              <p class="text-xs text-gray-500 mt-1">
+                Leave blank to download and send it yourself.
+              </p>
+          </div>
             <div class="pt-4 border-t border-gray-200">
               <label class="block font-medium text-brand-black text-sm mb-2">Issuer Account</label>
               <input v-model="issuerAccount" class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" required placeholder="r..." />
@@ -94,6 +108,20 @@
             <a :href="downloadUrl" download="diploma-vc.json" class="inline-block mt-4 px-6 py-2 bg-primary-blue text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium">
               Download VC JSON
             </a>
+            <div v-if="emailSending" class="mt-3 text-sm text-gray-600">
+              Sending to {{ emailPending }}...
+            </div>
+
+            <div v-else-if="emailSent" class="mt-3 text-sm text-green-700">
+              Sent to {{ emailSent }}
+            </div>
+
+            <div v-else-if="emailError" class="mt-3 text-sm text-amber-700">
+              <div>{{ emailError }}</div>
+              <div class="mt-1">
+                The credential was issued successfully — you can still download and send it manually.
+              </div>
+            </div>
             <div class="mt-6 pt-6 border-t border-gray-200">
               <img v-if="qrUrl" :src="qrUrl" alt="Verifier QR" class="w-48 h-48 mx-auto border-4 border-gray-200 rounded-lg" />
               <div class="text-xs text-gray-500 mt-3 text-center">Scan to verify (issuer/hash)</div>
@@ -198,6 +226,9 @@ function selectType(id: string) {
   credTypeId.value = id
   resetFormData(id)
   success.value = false
+  holderEmail.value = ''
+  emailSent.value = ''
+  emailError.value = ''
 }
 
 const issuerAccount = ref('')
@@ -210,6 +241,13 @@ const nftId = ref('')
 const downloadUrl = ref('')
 const qrUrl = ref('')
 const nftMintTime = ref('')
+const holderEmail = ref('')
+const emailSending = ref(false)
+// The address currently being sent to. Held separately so the field can be
+// cleared on success without the progress line losing its subject.
+const emailPending = ref('')
+const emailSent = ref('')
+const emailError = ref('')
 
 const mintMode = ref<'' | 'single' | 'batch'>('')
 const nftCount = ref<number | null>(null)
@@ -277,6 +315,9 @@ function validateIssuer() {
 async function handleSubmit() {
   error.value = ''
   success.value = false
+  holderEmail.value = holderEmail.value.trim()
+  emailSent.value = ''
+  emailError.value = ''
   nftId.value = ''
   nftMintTime.value = ''
   loading.value = true
@@ -322,10 +363,60 @@ async function handleSubmit() {
     downloadUrl.value = lastDownloadUrl
     qrUrl.value = await makeVerifierQR({ salt, hash, subject, issuerAccount: issuerAccount.value })
     success.value = true
+    if (holderEmail.value) {
+        await sendCredentialToHolder({ vc, salt })
+  }
   } catch (e: any) {
     error.value = e?.message || String(e)
   } finally {
     loading.value = false
+  }
+}
+
+async function sendCredentialToHolder({ vc, salt }: { vc: any; salt: string }) {
+  const address = holderEmail.value.trim()
+  emailSending.value = true
+  emailPending.value = address
+  emailError.value = ''
+  emailSent.value = ''
+
+  try {
+    const resp = await fetch('/api/email/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: address,
+        issuerAccount: issuerAccount.value.trim(),
+        nftId: nftId.value,
+        credential: {
+          anchoredVersion: 2,
+          credentialType: credType.value.id,
+          vc,
+          salt,
+        },
+        qrDataUrl: qrUrl.value,
+        issuerName: issuerDomain.value.trim() || issuerAccount.value.trim(),
+        credentialLabel: credType.value.displayName,
+        holderName: String(formData[credType.value.primaryField] || ''),
+      }),
+    })
+
+    const data = await resp.json().catch(() => ({}))
+
+    if (!resp.ok) {
+      throw new Error(data.error || `Send failed (HTTP ${resp.status})`)
+    }
+
+    emailSent.value = address
+    // Clear the field once it has gone, so the next credential issued cannot
+    // inherit this graduate's address and be sent to the wrong person. On
+    // failure it is deliberately kept, so the registrar can retry.
+    holderEmail.value = ''
+  } catch (e: any) {
+    emailError.value = e?.message || String(e)
+  } finally {
+    emailSending.value = false
+    emailPending.value = ''
   }
 }
 
