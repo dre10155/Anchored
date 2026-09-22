@@ -18,6 +18,7 @@
       />
       <p class="text-xs text-gray-500">
         CSV or JSON with columns: <span class="font-mono">{{ credType.fields.map(f => f.key).join(', ') }}</span>.
+        Add an optional <span class="font-mono">email</span> column for automatic delivery.
         <a :href="sampleCsvUrl" download="anchored-roster-sample.csv" class="text-primary-blue hover:text-blue-700 font-medium">Download a sample</a>
       </p>
     </div>
@@ -44,6 +45,10 @@
         </h3>
         <span class="text-xs text-gray-500">showing first {{ Math.min(5, records.length) }}</span>
       </div>
+      <p class="text-sm text-gray-600 mb-4">
+        {{ emailCount }} of {{ records.length }} rows include an email address.
+        <span v-if="records.length - emailCount">{{ records.length - emailCount }} will need manual delivery.</span>
+      </p>
       <div class="overflow-x-auto rounded-lg border border-gray-200 mb-6">
         <table class="w-full text-sm bg-white">
           <thead>
@@ -100,6 +105,24 @@
       <p class="text-xs text-gray-600 mt-3">
         Contains one credential file + QR per graduate, a manifest, and distribution instructions.
       </p>
+      <div v-if="delivery" class="mt-6 pt-5 border-t border-green-200">
+        <p class="font-semibold" :class="delivery.failed.length ? 'text-amber-800' : 'text-green-700'">
+          Email delivery: {{ delivery.sent }} sent, {{ delivery.skipped }} skipped, {{ delivery.failed.length }} failed.
+        </p>
+        <div v-if="deliverySending" class="text-sm text-gray-600 mt-2">
+          Sending {{ deliveryProgressDone }} of {{ deliveryProgressTotal }}...
+        </div>
+        <div v-if="delivery.failed.length" class="mt-4">
+          <table class="w-full text-sm border border-amber-200">
+            <thead class="bg-amber-50"><tr><th class="px-3 py-2 text-left">Name</th><th class="px-3 py-2 text-left">Address</th><th class="px-3 py-2 text-left">Reason</th></tr></thead>
+            <tbody><tr v-for="failure in delivery.failed" :key="failure.index" class="border-t border-amber-100"><td class="px-3 py-2">{{ failure.name }}</td><td class="px-3 py-2">{{ failure.email }}</td><td class="px-3 py-2">{{ failure.error }}</td></tr></tbody>
+          </table>
+          <div class="flex flex-wrap gap-3 mt-4">
+            <button @click="retryFailed" :disabled="deliverySending" class="px-4 py-2 bg-primary-blue text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400">Retry failed only</button>
+            <button @click="downloadFailures" class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Download failures as CSV</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <XamanSignModal
@@ -119,7 +142,9 @@
 import { computed, onUnmounted, ref } from 'vue'
 import { Buffer } from 'buffer'
 import { NFTokenMintFlags } from 'xrpl'
-import { parseRoster, buildBatch, makeBatchZip, batchUri, type RosterRecord, type RosterError } from '../lib/batch'
+import { parseRoster, buildBatch, makeBatchZip, batchUri, type RosterRecord, type RosterError, type BatchEntry } from '../lib/batch'
+import { sendBatchEmails, type BatchSendResult } from '../lib/batchEmail'
+import type { MerkleTree } from '../lib/merkle'
 import { withXrpl, resolveMintedNft, validateMintTx } from '../lib/xrplClient'
 import { useXamanSign } from '../composables/useXamanSign'
 import { DEFAULT_CREDENTIAL_TYPE, type CredentialType } from '../lib/credentialTypes'
@@ -132,6 +157,7 @@ const props = withDefaults(
 const credType = computed(() => props.credentialType)
 
 const records = ref<RosterRecord[]>([])
+const emails = ref<string[]>([])
 const rosterErrors = ref<RosterError[]>([])
 const parseError = ref('')
 const error = ref('')
@@ -140,6 +166,22 @@ const statusLabel = ref('')
 const progressDone = ref(0)
 const progressTotal = ref(0)
 const result = ref<{ root: string; nftId: string; count: number; zipUrl: string } | null>(null)
+const builtEntries = ref<BatchEntry[]>([])
+const builtTree = ref<MerkleTree | null>(null)
+const deliverySending = ref(false)
+const deliveryProgressDone = ref(0)
+const deliveryProgressTotal = ref(0)
+const deliveryResults = ref<BatchSendResult[]>([])
+const delivery = computed(() => {
+  if (!result.value) return null
+  const failed = deliveryResults.value.filter((item) => !item.ok)
+  return {
+    sent: deliveryResults.value.filter((item) => item.ok).length,
+    skipped: emails.value.filter((email) => !email).length,
+    failed,
+  }
+})
+const emailCount = computed(() => emails.value.filter(Boolean).length)
 
 const { xaman, cancel: cancelXamanSign, close: closeXaman, signViaXaman } = useXamanSign()
 
@@ -162,13 +204,16 @@ async function handleFileChange(e: Event) {
   parseError.value = ''
   error.value = ''
   records.value = []
+  emails.value = []
   rosterErrors.value = []
+  deliveryResults.value = []
   resetResult()
   if (!file) return
 
   try {
     const parsed = parseRoster(await file.text(), file.name, credType.value)
     records.value = parsed.records
+    emails.value = parsed.emails
     rosterErrors.value = parsed.errors
     if (!parsed.records.length) {
       parseError.value = 'No valid rows found in this roster.'
@@ -181,6 +226,9 @@ async function handleFileChange(e: Event) {
 async function handleAnchor() {
   error.value = ''
   resetResult()
+  deliveryResults.value = []
+  builtEntries.value = []
+  builtTree.value = null
   busy.value = true
   try {
     // 1. Hash every credential into one Merkle tree (nothing on-chain yet)
@@ -247,6 +295,9 @@ async function handleAnchor() {
       count: entries.length,
       zipUrl: URL.createObjectURL(blob),
     }
+    builtEntries.value = entries
+    builtTree.value = tree
+    await sendEmails()
   } catch (e: any) {
     error.value = e?.message || String(e)
     closeXaman()
@@ -255,6 +306,53 @@ async function handleAnchor() {
     statusLabel.value = ''
     progressTotal.value = 0
   }
+}
+
+async function sendEmails(only?: number[]) {
+  const targetIndexes = only ?? entriesWithEmails()
+  if (!targetIndexes.length) return
+  deliverySending.value = true
+  deliveryResults.value = only ? deliveryResults.value.filter((item) => !only.includes(item.index)) : []
+  deliveryProgressDone.value = 0
+  deliveryProgressTotal.value = targetIndexes.length
+  try {
+    const sent = await sendBatchEmails({
+      entries: builtEntries.value,
+      emails: emails.value,
+      tree: builtTree.value!,
+      issuerAccount: props.issuerAccount,
+      issuerDomain: props.issuerDomain,
+      nftId: result.value!.nftId,
+      type: credType.value,
+      only: only ?? targetIndexes,
+      onProgress: (done, total) => {
+        deliveryProgressDone.value = done
+        deliveryProgressTotal.value = total
+      },
+    })
+    deliveryResults.value = [...deliveryResults.value, ...sent].sort((a, b) => a.index - b.index)
+  } finally {
+    deliverySending.value = false
+  }
+}
+
+function entriesWithEmails() {
+  return emails.value.map((email, index) => email ? index : -1).filter((index) => index >= 0)
+}
+
+function retryFailed() {
+  void sendEmails(deliveryResults.value.filter((item) => !item.ok).map((item) => item.index))
+}
+
+function downloadFailures() {
+  const rows = deliveryResults.value.filter((item) => !item.ok)
+  const csv = ['name,email,error', ...rows.map((item) => [item.name, item.email, item.error || ''].map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))].join('\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = 'batch-email-failures.csv'
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 onUnmounted(resetResult)

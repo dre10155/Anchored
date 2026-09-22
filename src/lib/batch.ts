@@ -15,7 +15,22 @@ export interface RosterError {
 
 export interface ParsedRoster {
   records: RosterRecord[]
+  /** Recipient address per record, aligned by index. */
+  emails: string[]
   errors: RosterError[]
+}
+
+const EMAIL_KEYS = new Set(['email', 'emailaddress', 'e-mail', 'studentemail', 'contactemail', 'recipientemail'])
+
+function readEmail(raw: Record<string, any>): string {
+  for (const [key, value] of Object.entries(raw)) {
+    if (EMAIL_KEYS.has(normaliseKey(key))) return String(value ?? '').trim()
+  }
+  return ''
+}
+
+function isEmailShaped(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) && value.length <= 254
 }
 
 /** Map every accepted header (the field key plus its aliases) to the canonical field. */
@@ -87,14 +102,26 @@ export function parseRoster(text: string, filename: string, type: CredentialType
 
   const aliasMap = buildAliasMap(type)
   const records: RosterRecord[] = []
+  const emails: string[] = []
   const errors: RosterError[] = []
   rawRows.forEach((raw, i) => {
-    const { record, error } = validateRow(normaliseRow(raw, aliasMap), i + 1, type)
-    if (record) records.push(record)
-    else if (error) errors.push(error)
+    const rowNumber = i + 1
+    const { record, error } = validateRow(normaliseRow(raw, aliasMap), rowNumber, type)
+    if (!record) {
+      if (error) errors.push(error)
+      return
+    }
+
+    const email = readEmail(raw)
+    if (email && !isEmailShaped(email)) {
+      errors.push({ row: rowNumber, message: `Invalid email "${email}"` })
+      return
+    }
+    records.push(record)
+    emails.push(email)
   })
 
-  return { records, errors }
+  return { records, emails, errors }
 }
 
 export interface BatchEntry {
@@ -159,6 +186,25 @@ export interface BatchZipParams {
   onProgress?: (done: number, total: number) => void
 }
 
+/** The credential document delivered in both the ZIP and email attachment. */
+export function batchCredentialFile(params: {
+  entry: BatchEntry
+  index: number
+  tree: MerkleTree
+  issuerAccount: string
+  nftId: string
+  type: CredentialType
+}) {
+  const { entry, index, tree, issuerAccount, nftId, type } = params
+  return {
+    anchoredVersion: 2,
+    credentialType: type.id,
+    vc: entry.vc,
+    salt: entry.salt,
+    batch: { root: tree.root, proof: tree.proofs[index], issuerAccount, nftId },
+  }
+}
+
 /**
  * Package one credential file + QR per subject, plus a manifest, into a ZIP the
  * issuer can distribute.
@@ -179,13 +225,7 @@ export async function makeBatchZip({
 
   for (const [i, entry] of entries.entries()) {
     const batch = { root: tree.root, proof: tree.proofs[i] }
-    const credentialFile = {
-      anchoredVersion: 2,
-      credentialType: type.id,
-      vc: entry.vc,
-      salt: entry.salt,
-      batch: { ...batch, issuerAccount, nftId },
-    }
+    const credentialFile = batchCredentialFile({ entry, index: i, tree, issuerAccount, nftId, type })
     const base = safeFilename(nameOf(entry.record), i)
     folder.file(`${base}.json`, JSON.stringify(credentialFile, null, 2))
 
