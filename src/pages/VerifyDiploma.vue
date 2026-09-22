@@ -61,18 +61,19 @@
           <div v-if="resultState !== null" class="mt-6 p-4 sm:p-6 rounded-lg border-2"
             :class="{
               'bg-green-50 border-green-200': resultState === 'verified',
-              'bg-amber-50 border-amber-300': resultState === 'anchored' || resultState === 'revoked',
+              'bg-amber-50 border-amber-300': resultState === 'anchored' || resultState === 'revoked' || resultState === 'expired',
               'bg-red-50 border-red-200': resultState === 'invalid',
             }">
             <div class="font-bold text-lg sm:text-xl mb-3 break-words"
               :class="{
                 'text-green-700': resultState === 'verified',
-                'text-amber-700': resultState === 'anchored' || resultState === 'revoked',
+                'text-amber-700': resultState === 'anchored' || resultState === 'revoked' || resultState === 'expired',
                 'text-red-700': resultState === 'invalid',
               }">
               {{ resultState === 'verified' ? `${credentialNoun} Verified ✅ — issued by ${issuerDomain}`
                 : resultState === 'anchored' ? 'Anchored — Issuer Unverified ⚠️'
                 : resultState === 'revoked' ? `${credentialNoun} Revoked ⚠️`
+                : resultState === 'expired' ? `${credentialNoun} Expired ⚠️`
                 : `${credentialNoun} Not Verified ❌` }}
             </div>
             <div class="text-sm text-gray-700 mb-4">{{ resultReason }}</div>
@@ -109,14 +110,16 @@ import { verifyMerkleProof } from '../lib/merkle'
 import { scanIssuerLedger, decodeHex } from '../lib/verify'
 import { checkDidListsAddress, decodeHexDomain } from '../lib/did'
 import { inferCredentialType, normaliseKey } from '../lib/credentialTypes'
+import { isExpired } from '../lib/verify'
 import { Client } from 'xrpl'
 import { QrcodeStream } from 'qrcode-reader-vue3'
+
 
 const issuerAccount = ref('')
 const diplomaDetails = ref<any>(null)
 const loading = ref(false)
 const error = ref('')
-const resultState = ref<'verified' | 'anchored' | 'revoked' | 'invalid' | null>(null)
+const resultState = ref<'verified' | 'anchored' | 'expired' | 'revoked' | 'invalid' | null>(null)
 const resultReason = ref('')
 const issuerDomain = ref('')
 const vcFile = ref<File | null>(null)
@@ -304,6 +307,16 @@ const handleVerify = async () => {
     const provenance = batch.value
       ? `Proven member of a batch of credentials anchored${issuedOn}.`
       : `Anchored${issuedOn}.`
+
+    const subject = (diplomaDetails.value ?? {}) as Record<string, unknown>
+    const type = detailType.value
+    if (type && isExpired(subject, type)) {
+      const expiryYear = Number(subject[type.expiryField || 'expiryYear'])
+      const issuerLabel = issuerDomain.value || 'the issuer'
+      resultState.value = 'expired'
+      resultReason.value = `This ${type.displayName.toLowerCase()} was genuinely issued by ${issuerLabel} and has not been altered, but it expired at the end of ${expiryYear} and is no longer current.`
+      return
+    }
 
     if (identityVerified) {
       resultState.value = 'verified'

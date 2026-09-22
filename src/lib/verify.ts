@@ -1,5 +1,6 @@
 import { Buffer } from 'buffer'
 import { getNFTokenID } from 'xrpl'
+import type { CredentialType } from './credentialTypes'
 
 /** Memo types Anchored writes to the ledger. */
 export const MEMO_SINGLE = 'vc-hash'
@@ -27,6 +28,26 @@ export interface ScanTarget {
   hash: string
   /** Merkle root, when the credential was issued as part of a batch */
   batchRoot?: string
+}
+
+/**
+ * Whether a credential's expiry year has passed. Returns false when the type
+ * has no expiry, when no year is present, or when the value is unusable.
+ */
+export function isExpired(
+  subject: Record<string, unknown>,
+  type: CredentialType,
+  now: Date = new Date(),
+): boolean {
+  if (!type.expiryField) return false
+
+  const raw = subject[type.expiryField]
+  if (raw === undefined || raw === null || raw === '') return false
+
+  const year = Number(raw)
+  if (!Number.isFinite(year)) return false
+
+  return now.getFullYear() > year
 }
 
 export function decodeHex(hex?: string): string {
