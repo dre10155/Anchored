@@ -9,6 +9,7 @@ const route = useRoute()
 watch(() => route.fullPath, () => { menuOpen.value = false })
 
 const links = [
+  { to: '/dashboard', label: 'Dashboard' },
   { to: '/issue', label: 'Issue' },
   { to: '/revoke', label: 'Revoke' },
   { to: '/identity', label: 'Identity' },
