@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { Buffer } from 'buffer'
-import { scanIssuerLedger, buildRevocationTx, decodeHex, MEMO_SINGLE, MEMO_BATCH, MEMO_REVOKE } from './verify'
+import { CREDENTIAL_TYPES } from './credentialTypes'
+import { scanIssuerLedger, buildRevocationTx, decodeHex, MEMO_SINGLE, MEMO_BATCH, MEMO_REVOKE, isExpired } from './verify'
 
 const ISSUER = 'rNeqwL8sjHvi4TndDCrYqYDh1dQKNBekhv'
 const HASH = 'a'.repeat(64)
@@ -61,6 +62,35 @@ function mockClient(pages: any[][]) {
     },
   }
 }
+
+describe('isExpired', () => {
+  const type = CREDENTIAL_TYPES.find((t) => t.id === 'professional-license')!
+
+  it('returns false when the type has no expiry field', () => {
+    expect(isExpired({ studentName: 'Jane' }, CREDENTIAL_TYPES[0], new Date('2026-06-01'))).toBe(false)
+  })
+
+  it('returns false when the field is missing', () => {
+    expect(isExpired({ holderName: 'Jane' }, type, new Date('2026-06-01'))).toBe(false)
+  })
+
+  it('returns false for the current-year boundary', () => {
+    expect(isExpired({ expiryYear: 2026 }, type, new Date('2026-06-01'))).toBe(false)
+  })
+
+  it('returns true when the expiry year is in the past', () => {
+    expect(isExpired({ expiryYear: 2024 }, type, new Date('2026-06-01'))).toBe(true)
+  })
+
+  it('accepts string values from JSON and roster data', () => {
+    expect(isExpired({ expiryYear: '2024' }, type, new Date('2026-06-01'))).toBe(true)
+  })
+
+  it('returns false for malformed values without throwing', () => {
+    expect(isExpired({ expiryYear: 'soon' }, type, new Date('2026-06-01'))).toBe(false)
+    expect(isExpired({ expiryYear: NaN }, type, new Date('2026-06-01'))).toBe(false)
+  })
+})
 
 describe('scanIssuerLedger — single-mint credentials', () => {
   it('finds an anchor by memo', async () => {
