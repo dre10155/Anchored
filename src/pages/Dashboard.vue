@@ -62,10 +62,27 @@
                 <button type="button" @click="exportCsv" :disabled="!filteredAnchors.length" class="px-4 py-2.5 bg-brand-black text-white rounded-lg hover:bg-gray-800 text-sm font-medium disabled:bg-gray-300">Export CSV</button>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:max-w-md">
+                <label class="text-xs text-gray-500">Find by name
+                  <input v-model="nameQuery" :disabled="!namedSubjectCount" type="search" placeholder="Student or licensee" class="block w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm disabled:bg-gray-50 disabled:placeholder-gray-300" />
+                </label>
+                <label class="text-xs text-gray-500">Load batch manifest
+                  <input type="file" accept=".json" multiple @change="handleManifestUpload" class="block w-full mt-1 text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:bg-gray-100 file:text-brand-black hover:file:bg-gray-200 file:cursor-pointer" />
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 xl:max-w-md">
                 <label class="text-xs text-gray-500">From<input v-model="dateFrom" type="date" class="block w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm" /></label>
                 <label class="text-xs text-gray-500">To<input v-model="dateTo" type="date" class="block w-full mt-1 p-2 border border-gray-300 rounded-lg text-sm" /></label>
               </div>
             </div>
+
+            <div v-if="manifestError" class="mx-5 mt-5 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{{ manifestError }}</div>
+            <div v-if="namedSubjectCount" class="mx-5 mt-5 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900 flex flex-wrap items-center justify-between gap-3">
+              <span>{{ manifestNote || `${namedSubjectCount} names available from loaded manifests.` }}</span>
+              <button type="button" @click="forgetNames" class="font-semibold underline whitespace-nowrap">Forget these names</button>
+            </div>
+            <p v-else class="mx-5 mt-5 text-xs text-gray-500">
+              The ledger holds no personal data, so names are not shown here. Load a batch manifest from your credential package to search by name — it is read on this device and never uploaded.
+            </p>
 
             <div v-if="truncated" class="mx-5 mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">Showing the most recent 2,000 transactions. Older credentials exist but are not listed.</div>
             <div v-if="individualRevocations" class="mx-5 mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">{{ individualRevocations }} individual credentials revoked within batches.</div>
@@ -77,7 +94,8 @@
                   <tr><th class="px-5 py-3">Type</th><th class="px-5 py-3">Anchored</th><th class="px-5 py-3">Reference</th><th class="px-5 py-3">NFT ID</th><th class="px-5 py-3">Status</th><th class="px-5 py-3">Ledger</th></tr>
                 </thead>
                 <tbody>
-                  <tr v-for="anchor in filteredAnchors" :key="`${anchor.txHash}-${anchor.nftId}`" class="border-t border-gray-100 hover:bg-gray-50">
+                  <template v-for="anchor in filteredAnchors" :key="`${anchor.txHash}-${anchor.nftId}`">
+                  <tr class="border-t border-gray-100 hover:bg-gray-50">
                     <td class="px-5 py-4 text-sm font-medium text-brand-black">{{ anchor.kind === 'batch' ? 'Class (batch)' : 'Credential' }}</td>
                     <td class="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">{{ formatDate(anchor.mintDate) }}</td>
                     <td class="px-5 py-4"><button type="button" @click="copy(anchor.reference)" class="font-mono text-xs text-primary-blue hover:underline" :title="`Copy ${anchor.reference}`">{{ shorten(anchor.reference) }}</button></td>
@@ -85,6 +103,23 @@
                     <td class="px-5 py-4"><span class="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold" :class="anchor.revoked ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-700'">{{ anchor.revoked ? 'Revoked' : 'Live' }}</span><span v-if="anchor.revokedAt" class="block text-xs text-gray-500 mt-1">{{ formatDate(anchor.revokedAt) }}</span></td>
                     <td class="px-5 py-4"><a :href="`https://testnet.xrpl.org/transactions/${anchor.txHash}`" target="_blank" rel="noreferrer" class="text-primary-blue hover:underline text-sm">View</a></td>
                   </tr>
+                  <!-- Names for this batch, from a manifest the registrar loaded. -->
+                  <tr v-if="manifests.has(anchor.reference)" class="border-t border-gray-100 bg-gray-50/60">
+                    <td colspan="6" class="px-5 py-3">
+                      <button type="button" @click="toggleExpanded(anchor.reference)" class="text-sm font-medium text-primary-blue hover:underline">
+                        {{ expandedRoot === anchor.reference ? 'Hide' : 'Show' }} {{ subjectsFor(anchor.reference).length }} named
+                        {{ subjectsFor(anchor.reference).length === 1 ? 'subject' : 'subjects' }}
+                      </button>
+                      <ul v-if="expandedRoot === anchor.reference" class="mt-3 grid gap-2 sm:grid-cols-2">
+                        <li v-for="subject in subjectsFor(anchor.reference)" :key="subject.leaf" class="p-3 bg-white border border-gray-200 rounded-lg">
+                          <p class="font-medium text-brand-black text-sm">{{ subject.name || 'Unnamed' }}</p>
+                          <p class="text-xs text-gray-500 font-mono mt-1 break-all">{{ subject.file }}</p>
+                          <button type="button" @click="copy(subject.leaf)" class="text-xs text-primary-blue hover:underline mt-1" :title="`Copy ${subject.leaf}`">Copy credential hash</button>
+                        </li>
+                      </ul>
+                    </td>
+                  </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
@@ -103,6 +138,7 @@ import XamanSignModal from '../components/XamanSignModal.vue'
 import { useIssuerAddress } from '../composables/useIssuerAddress'
 import { scanIssuerAnchors, type IssuedAnchor } from '../lib/verify'
 import { withXrpl } from '../lib/xrplClient'
+import { matchesName, parseManifest, type ParsedManifest } from '../lib/manifest'
 
 const { address, connectedViaXaman, saved, setManual, connect, xaman, cancel } = useIssuerAddress()
 const anchors = ref<IssuedAnchor[]>([])
@@ -118,11 +154,38 @@ const statusFilter = ref('all')
 const dateFrom = ref('')
 const dateTo = ref('')
 
+// Manifests the registrar has opened this session, keyed by Merkle root. Held
+// in memory only: these carry student names, and this is often a shared
+// workstation. Closing the tab forgets them.
+const manifests = ref(new Map<string, ParsedManifest>())
+const nameQuery = ref('')
+const expandedRoot = ref('')
+const manifestNote = ref('')
+const manifestError = ref('')
+
+const namedSubjectCount = computed(() =>
+  [...manifests.value.values()].reduce((total, manifest) => total + manifest.subjects.length, 0),
+)
+
+/** Subjects of a batch whose manifest is loaded, narrowed by the name search. */
+function subjectsFor(root: string) {
+  const manifest = manifests.value.get(root)
+  if (!manifest) return []
+  return manifest.subjects.filter((subject) => matchesName(subject.name, nameQuery.value))
+}
+
 const filteredAnchors = computed(() => anchors.value.filter((anchor) => {
   const date = anchor.mintDate.slice(0, 10)
-  return (typeFilter.value === 'all' || anchor.kind === typeFilter.value) &&
+  const matchesFilters = (typeFilter.value === 'all' || anchor.kind === typeFilter.value) &&
     (statusFilter.value === 'all' || (statusFilter.value === 'revoked' ? anchor.revoked : !anchor.revoked)) &&
     (!dateFrom.value || date >= dateFrom.value) && (!dateTo.value || date <= dateTo.value)
+  if (!matchesFilters) return false
+
+  // A name search can only speak for batches whose manifest is loaded. Anchors
+  // with no manifest are hidden while searching rather than shown as
+  // non-matches, since we genuinely cannot say who they belong to.
+  if (!nameQuery.value) return true
+  return subjectsFor(anchor.reference).length > 0
 }))
 
 const summary = computed(() => [
@@ -169,6 +232,45 @@ async function loadAnchors() {
 async function connectWallet() {
   error.value = ''
   try { await connect() } catch (err: any) { error.value = err?.message || String(err) }
+}
+
+async function handleManifestUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  manifestError.value = ''
+  manifestNote.value = ''
+  let added = 0
+
+  for (const file of Array.from(input.files || [])) {
+    try {
+      // Read in the browser. Nothing is uploaded, and nothing is stored.
+      const parsed = parseManifest(await file.text())
+      manifests.value.set(parsed.root, parsed)
+      added += parsed.subjects.length
+    } catch (err: any) {
+      manifestError.value = `${file.name}: ${err?.message || String(err)}`
+    }
+  }
+
+  if (added) {
+    const known = anchors.value.some((anchor) => manifests.value.has(anchor.reference))
+    manifestNote.value = known
+      ? `${added} names loaded. They stay on this device and are forgotten when you close the tab.`
+      : `${added} names loaded, but no batch on this wallet matches them — check the manifest belongs to this issuer.`
+  }
+  // Allow re-picking the same file after a correction.
+  input.value = ''
+}
+
+function toggleExpanded(root: string) {
+  expandedRoot.value = expandedRoot.value === root ? '' : root
+}
+
+function forgetNames() {
+  manifests.value = new Map()
+  nameQuery.value = ''
+  expandedRoot.value = ''
+  manifestNote.value = ''
+  manifestError.value = ''
 }
 
 async function copy(value: string) {

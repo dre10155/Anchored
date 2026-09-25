@@ -11,6 +11,7 @@ watch(() => route.fullPath, () => { menuOpen.value = false })
 const links = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/issue', label: 'Issue' },
+  { to: '/transcript', label: 'Transcript' },
   { to: '/revoke', label: 'Revoke' },
   { to: '/identity', label: 'Identity' },
 ]
