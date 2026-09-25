@@ -56,5 +56,37 @@ export function useXamanSign() {
     return resolution.txid
   }
 
-  return { xaman, cancel, close, signViaXaman }
+  /** Prove control of a wallet without creating a ledger transaction. */
+  async function signInViaXaman(): Promise<string> {
+    xaman.cancelled = false
+    xaman.status = 'pending'
+    xaman.errorMessage = ''
+    xaman.qrPng = ''
+    xaman.visible = true
+
+    const payload = await createXamanPayload({ TransactionType: 'SignIn' })
+    xaman.qrPng = payload.qrPng
+    xaman.deeplink = payload.deeplink
+
+    const resolution = await waitForXamanSignature(payload.uuid)
+    if (xaman.cancelled) throw new Error('Sign-in cancelled.')
+    if (resolution.cancelled) {
+      xaman.status = 'rejected'
+      throw new Error('Sign-in was rejected in Xaman.')
+    }
+    if (resolution.expired) {
+      xaman.status = 'expired'
+      throw new Error('The sign-in request expired before it was completed.')
+    }
+    if (!resolution.signed || !resolution.account) {
+      xaman.status = 'error'
+      xaman.errorMessage = 'Xaman did not return a wallet address.'
+      throw new Error(xaman.errorMessage)
+    }
+
+    xaman.status = 'signed'
+    return resolution.account
+  }
+
+  return { xaman, cancel, close, signViaXaman, signInViaXaman }
 }
