@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseRoster, buildBatch, batchUri } from './batch'
+import { parseRoster, buildBatch, batchUri, batchCredentialFile } from './batch'
 import { verifyMerkleProof } from './merkle'
 import { credentialHash } from './crypto'
 import { getCredentialType } from './credentialTypes'
@@ -50,6 +50,40 @@ describe('parseRoster', () => {
     expect(errors[0].message).toMatch(/Missing studentName/)
     expect(errors[1].message).toMatch(/Invalid Year/)
     expect(errors[2].message).toMatch(/Invalid Year/)
+  })
+
+  it('keeps emails aligned when an earlier row is invalid', () => {
+    const csv = [
+      'studentName,university,degree,year,student_email',
+      'Jane Doe,SALCC,BSc Nursing,2026,jane@example.com',
+      ',SALCC,BSc,2026,invalid@example.com',
+      'John Roe,SALCC,BA,2025,john@example.com',
+    ].join('\n')
+    const { records, emails, errors } = parseRoster(csv, 'roster.csv')
+    expect(records.map((record) => record.studentName)).toEqual(['Jane Doe', 'John Roe'])
+    expect(emails).toEqual(['jane@example.com', 'john@example.com'])
+    expect(errors).toHaveLength(1)
+  })
+
+  it.each(['Email', 'E-Mail', 'student_email'])('accepts the %s email header', (header) => {
+    const csv = `studentName,university,degree,year,${header}\nJane Doe,SALCC,BSc,2026,jane@example.com`
+    expect(parseRoster(csv, 'roster.csv').emails).toEqual(['jane@example.com'])
+  })
+
+  it('keeps blank email addresses as skippable recipients', () => {
+    const csv = 'studentName,university,degree,year,email\nJane Doe,SALCC,BSc,2026,'
+    const { records, emails, errors } = parseRoster(csv, 'roster.csv')
+    expect(records).toHaveLength(1)
+    expect(emails).toEqual([''])
+    expect(errors).toEqual([])
+  })
+
+  it('reports malformed email addresses without putting them in the record', () => {
+    const csv = 'studentName,university,degree,year,email\nJane Doe,SALCC,BSc,2026,not-an-email'
+    const { records, emails, errors } = parseRoster(csv, 'roster.csv')
+    expect(records).toEqual([])
+    expect(emails).toEqual([])
+    expect(errors[0].message).toMatch(/Invalid email/)
   })
 
   it('parses a roster for a different credential type — same engine, new config', () => {
@@ -124,6 +158,22 @@ describe('buildBatch', () => {
     const seen: number[] = []
     await buildBatch(roster, ISSUER, undefined, (done) => seen.push(done))
     expect(seen[seen.length - 1]).toBe(7)
+  })
+
+  it('keeps email addresses out of the credential and includes the batch proof file', async () => {
+    const record = { studentName: 'Jane Doe', university: 'SALCC', degree: 'BSc', year: 2026 }
+    const { entries, tree } = await buildBatch([record], ISSUER)
+    const file = batchCredentialFile({
+      entry: entries[0],
+      index: 0,
+      tree,
+      issuerAccount: ISSUER,
+      nftId: 'A'.repeat(64),
+      type: getCredentialType('diploma'),
+    })
+    expect(file.vc.credentialSubject).not.toHaveProperty('email')
+    expect(file.batch.proof).toEqual(tree.proofs[0])
+    expect(file.batch.root).toBe(tree.root)
   })
 })
 
