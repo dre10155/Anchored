@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { Buffer } from 'buffer'
-import { scanIssuerLedger, buildRevocationTx, decodeHex, MEMO_SINGLE, MEMO_BATCH, MEMO_REVOKE } from './verify'
+import { scanIssuerLedger, scanIssuerAnchors, buildRevocationTx, decodeHex, MEMO_SINGLE, MEMO_BATCH, MEMO_REVOKE } from './verify'
 
 const ISSUER = 'rNeqwL8sjHvi4TndDCrYqYDh1dQKNBekhv'
 const HASH = 'a'.repeat(64)
@@ -42,6 +42,14 @@ function mintTx(opts: { memos?: any[]; uri?: string; date?: string; nftId?: stri
 function revokeTx(hash: string, date = '2026-07-01T10:00:00Z') {
   return {
     tx: { TransactionType: 'AccountSet', Account: ISSUER, Memos: [memo(MEMO_REVOKE, { hash })] },
+    meta: {},
+    close_time_iso: date,
+  }
+}
+
+function burnTx(nftId = NFT_ID, date = '2026-07-01T10:00:00Z') {
+  return {
+    tx: { TransactionType: 'NFTokenBurn', Account: ISSUER, NFTokenID: nftId },
     meta: {},
     close_time_iso: date,
   }
@@ -210,5 +218,42 @@ describe('buildRevocationTx', () => {
     const client = mockClient([[mintTx({ memos: [memo(MEMO_SINGLE, { hash: HASH })] }), { tx, meta: {} }]])
     const scan = await scanIssuerLedger(client, ISSUER, { hash: HASH })
     expect(scan.revoked).toBe(true)
+  })
+})
+
+describe('scanIssuerAnchors', () => {
+  it('finds single and URI-only batch anchors', async () => {
+    const client = mockClient([[
+      { ...mintTx({ memos: [memo(MEMO_SINGLE, { hash: HASH })] }), hash: 'single-tx' },
+      { ...mintTx({ uri: `vc:merkle:${ROOT}` }), hash: 'batch-tx' },
+    ]])
+    const result = await scanIssuerAnchors(client, ISSUER)
+    expect(result.anchors).toMatchObject([
+      { kind: 'single', reference: HASH, txHash: 'single-tx' },
+      { kind: 'batch', reference: ROOT, txHash: 'batch-tx' },
+    ])
+  })
+
+  it('joins a burn that appears before its mint', async () => {
+    const client = mockClient([[burnTx()], [mintTx({ memos: [memo(MEMO_SINGLE, { hash: HASH })] })]])
+    const result = await scanIssuerAnchors(client, ISSUER)
+    expect(result.anchors[0]).toMatchObject({ revoked: true, revokedAt: '2026-07-01T10:00:00Z' })
+  })
+
+  it('counts individual batch revocations without revoking the batch anchor', async () => {
+    const client = mockClient([[mintTx({ memos: [memo(MEMO_BATCH, { root: ROOT })] }), revokeTx(HASH)]])
+    const result = await scanIssuerAnchors(client, ISSUER)
+    expect(result.anchors[0].revoked).toBe(false)
+    expect(result.individualRevocations).toBe(1)
+  })
+
+  it('ignores unrelated NFT mints and reports truncation', async () => {
+    const client = mockClient([
+      [{ ...mintTx({ memos: [memo('other', {})] }), hash: 'unrelated' }],
+      [{ tx: { TransactionType: 'Payment', Account: ISSUER }, meta: {} }],
+    ])
+    const result = await scanIssuerAnchors(client, ISSUER, { maxTx: 1 })
+    expect(result.anchors).toHaveLength(0)
+    expect(result.truncated).toBe(true)
   })
 })
