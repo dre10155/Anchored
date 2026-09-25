@@ -23,6 +23,23 @@ export interface LedgerScan {
   truncated: boolean
 }
 
+export interface IssuedAnchor {
+  nftId: string
+  kind: 'single' | 'batch'
+  reference: string
+  mintDate: string
+  revoked: boolean
+  revokedAt: string
+  txHash: string
+}
+
+export interface IssuerAnchors {
+  anchors: IssuedAnchor[]
+  scannedTx: number
+  truncated: boolean
+  individualRevocations: number
+}
+
 export interface ScanTarget {
   /** Salted credential hash — the leaf, and what single mints anchor directly */
   hash: string
@@ -158,6 +175,100 @@ export async function scanIssuerLedger(
   } while (marker && scannedTx < maxTx && !(anchor && revoked))
 
   return { anchor, revoked, revokedAt, scannedTx, truncated: Boolean(marker) && scannedTx >= maxTx }
+}
+
+/** Walk all credential anchors in an issuer's history, including burned NFTs. */
+export async function scanIssuerAnchors(
+  client: { request: (req: any) => Promise<any> },
+  account: string,
+  { pageSize = 200, maxTx = 2000, onProgress }: { pageSize?: number; maxTx?: number; onProgress?: (scanned: number) => void } = {}
+): Promise<IssuerAnchors> {
+  let marker: unknown
+  let scannedTx = 0
+  const anchors: IssuedAnchor[] = []
+  const burned = new Map<string, string>()
+  let individualRevocations = 0
+
+  do {
+    const resp: any = await client.request({
+      command: 'account_tx',
+      account,
+      limit: pageSize,
+      ...(marker ? { marker } : {}),
+    })
+    const txs: any[] = Array.isArray(resp?.result?.transactions) ? resp.result.transactions : []
+
+    for (const txObj of txs) {
+      const tx = txObj.tx || txObj.tx_json
+      if (!tx) continue
+      const date = txObj.close_time_iso || ''
+
+      for (const memo of decodeMemos(tx)) {
+        if (memo.type === MEMO_REVOKE && memo.data?.hash) individualRevocations++
+      }
+
+      if (tx.TransactionType === 'NFTokenBurn' && tx.NFTokenID) {
+        burned.set(tx.NFTokenID, date)
+        continue
+      }
+
+      if (tx.TransactionType !== 'NFTokenMint') continue
+
+      let kind: IssuedAnchor['kind'] | null = null
+      let reference = ''
+      for (const memo of decodeMemos(tx)) {
+        if (memo.type === MEMO_SINGLE && memo.data?.hash) {
+          kind = 'single'
+          reference = memo.data.hash
+          break
+        }
+        if (memo.type === MEMO_BATCH && memo.data?.root) {
+          kind = 'batch'
+          reference = memo.data.root
+          break
+        }
+      }
+      if (!kind) {
+        const uri = decodeHex(tx.URI)
+        if (uri.startsWith('vc:sha256:')) {
+          kind = 'single'
+          reference = uri.slice('vc:sha256:'.length)
+        } else if (uri.startsWith('vc:merkle:')) {
+          kind = 'batch'
+          reference = uri.slice('vc:merkle:'.length)
+        }
+      }
+      if (!kind) continue
+
+      let nftId = ''
+      try {
+        nftId = getNFTokenID(txObj.meta) || ''
+      } catch {}
+      anchors.push({
+        nftId,
+        kind,
+        reference,
+        mintDate: date,
+        revoked: false,
+        revokedAt: '',
+        txHash: txObj.hash || tx.hash || '',
+      })
+    }
+
+    scannedTx += txs.length
+    onProgress?.(scannedTx)
+    marker = resp?.result?.marker
+  } while (marker && scannedTx < maxTx)
+
+  for (const anchor of anchors) {
+    const revokedAt = burned.get(anchor.nftId)
+    if (revokedAt !== undefined) {
+      anchor.revoked = true
+      anchor.revokedAt = revokedAt
+    }
+  }
+
+  return { anchors, scannedTx, truncated: Boolean(marker) && scannedTx >= maxTx, individualRevocations }
 }
 
 /** The transaction an issuer signs to revoke a single credential. */

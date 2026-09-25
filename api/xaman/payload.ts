@@ -8,7 +8,8 @@ export default async function handler(req: any, res: any) {
   }
   try {
     const { txjson } = req.body || {}
-    if (!txjson || typeof txjson !== 'object' || !txjson.TransactionType || !txjson.Account) {
+    const isSignIn = txjson?.TransactionType === 'SignIn'
+    if (!txjson || typeof txjson !== 'object' || !txjson.TransactionType || (!isSignIn && !txjson.Account)) {
       res.status(400).json({ error: 'txjson with TransactionType and Account is required' })
       return
     }

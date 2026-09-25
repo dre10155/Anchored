@@ -32,6 +32,11 @@ const router = createRouter({
       path: '/identity',
       name: 'identity',
       component: InstitutionIdentity
+    },
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: () => import('../pages/Dashboard.vue')
     }
   ],
   scrollBehavior() {
