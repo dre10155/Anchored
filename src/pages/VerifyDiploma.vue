@@ -20,9 +20,9 @@
           <form @submit.prevent="handleVerify" class="space-y-6">
             <div>
               <label class="block font-medium text-brand-black mb-2">Upload the credential file</label>
-              <input type="file" @change="handleFileUpload" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-blue file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-all file:duration-200" accept=".json" />
+              <input type="file" @change="handleFileUpload" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-blue file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-all file:duration-200" accept=".json,.pdf" />
               <p class="text-xs text-gray-500 mt-2">
-                The <span class="font-mono">.json</span> file the graduate was given — or scan their QR code. Nothing else needed.
+                The <span class="font-mono">.json</span> file or stamped <span class="font-mono">.pdf</span> transcript the graduate was given — or scan their QR code.
               </p>
             </div>
 
@@ -77,6 +77,10 @@
                 : `${credentialNoun} Not Verified ❌` }}
             </div>
             <div class="text-sm text-gray-700 mb-4">{{ resultReason }}</div>
+            <p v-if="isPdf" class="text-xs text-gray-600 mb-4">
+              Checked against the document exactly as supplied. A re-saved, re-exported or rescanned copy
+              will not match, even when its contents look identical.
+            </p>
             <div v-if="detailRows.length" class="mt-4 p-4 bg-white rounded-lg border border-gray-200">
               <h3 class="font-semibold text-brand-black mb-3 text-lg">{{ detailTitle }}</h3>
               <div class="space-y-2 text-sm">
@@ -129,6 +133,7 @@ const batch = ref<{ root: string; proof: string[] } | null>(null)
 const showQrScanner = ref(false)
 const qrError = ref('')
 const progressNote = ref('')
+const isPdf = ref(false)
 
 // Render whatever fields the credential carries, labelled by its inferred type —
 // so the verifier works for diplomas, licenses, workforce credentials, etc.
@@ -199,13 +204,39 @@ const handleFileUpload = async (event: Event) => {
   const file = target.files?.[0]
   if (!file) return
   vcFile.value = file
+  isPdf.value = false
   try {
-    await loadCredential(JSON.parse(await file.text()))
+    if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
+      await loadStampedPdf(file)
+    } else {
+      await loadCredential(JSON.parse(await file.text()))
+    }
   } catch (err: any) {
-    error.value = 'Invalid VC file: ' + err.message
+    error.value = (/\.pdf$/i.test(file.name) ? 'Could not read that PDF: ' : 'Invalid VC file: ') + err.message
     resultState.value = null
     resultReason.value = ''
   }
+}
+
+/**
+ * A stamped transcript carries everything needed to check it: the salt and
+ * issuer live in its metadata, and the document's own bytes are the rest of
+ * the input. The hash is taken over the file exactly as received — which is
+ * why a re-saved or rescanned copy will not match.
+ */
+async function loadStampedPdf(file: File) {
+  const { pdfCredentialHash, readPdfAnchorMetadata } = await import('../lib/pdfCredential')
+  const bytes = await file.arrayBuffer()
+  const meta = await readPdfAnchorMetadata(bytes)
+  if (!meta.salt) {
+    throw new Error('this PDF carries no Anchored credential. Only stamped documents can be verified.')
+  }
+  salt.value = meta.salt
+  hash.value = await pdfCredentialHash(bytes, meta.salt)
+  batch.value = null
+  diplomaDetails.value = null
+  isPdf.value = true
+  if (!issuerAccount.value) issuerAccount.value = cleanAccount(meta.issuerAccount || '')
 }
 
 const handleVerify = async () => {

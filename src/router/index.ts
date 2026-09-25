@@ -34,6 +34,12 @@ const router = createRouter({
       component: InstitutionIdentity
     },
     {
+      path: '/transcript',
+      name: 'transcript',
+      // Lazily loaded: this route pulls in pdf-lib, which most sessions never need.
+      component: () => import('../pages/IssueTranscript.vue')
+    },
+    {
       path: '/dashboard',
       name: 'dashboard',
       component: () => import('../pages/Dashboard.vue')
