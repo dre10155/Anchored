@@ -186,14 +186,16 @@ async function loadCredential(data: any) {
   // should never have to type one. Checked in order of reliability; the
   // credentialSubject copy is what single-mint files carry, and vc.issuer is
   // only usable when it is a raw address rather than a did:web identifier.
-  if (!issuerAccount.value) {
-    issuerAccount.value =
-      cleanAccount(data.issuerAccount || '') ||
-      cleanAccount(data.batch?.issuerAccount || '') ||
-      cleanAccount(vc?.credentialSubject?.issuerAccount || '') ||
-      cleanAccount(data.subject?.issuerAccount || '') ||
-      cleanAccount(vc?.issuer || '')
-  }
+  // The credential's own answer wins over whatever is in the field. Keeping a
+  // stale address from a previous check would scan the wrong issuer and report
+  // a perfectly valid credential as unverified.
+  const named =
+    cleanAccount(data.issuerAccount || '') ||
+    cleanAccount(data.batch?.issuerAccount || '') ||
+    cleanAccount(vc?.credentialSubject?.issuerAccount || '') ||
+    cleanAccount(data.subject?.issuerAccount || '') ||
+    cleanAccount(vc?.issuer || '')
+  if (named) issuerAccount.value = named
   resultState.value = null
   resultReason.value = ''
   error.value = ''
@@ -236,7 +238,10 @@ async function loadStampedPdf(file: File) {
   batch.value = null
   diplomaDetails.value = null
   isPdf.value = true
-  if (!issuerAccount.value) issuerAccount.value = cleanAccount(meta.issuerAccount || '')
+  // As above: the stamped document names its issuer, and that beats anything
+  // left in the field from an earlier check.
+  const named = cleanAccount(meta.issuerAccount || '')
+  if (named) issuerAccount.value = named
 }
 
 const handleVerify = async () => {
