@@ -12,7 +12,7 @@
         <div>
           <span v-reveal class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-xs font-medium tracking-wide text-gray-300 uppercase">
             <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse-ring"></span>
-            Live on the XRP Ledger
+            Live on XRPL testnet
           </span>
 
           <h1 v-reveal="1" class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.05]">
