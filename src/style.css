@@ -6,6 +6,18 @@
   body {
     @apply bg-white text-gray-900;
   }
+
+  /* Keyboard paging and anchor jumps glide rather than snap, which is what
+     makes the landing page watchable when it is being screen-recorded. */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
 }
 
 @layer utilities {
@@ -23,6 +35,65 @@
 
   .animation-delay-4000 {
     animation-delay: 4s;
+  }
+}
+
+/* Scroll reveal — see src/directives/reveal.ts.
+   Only opacity and transform are animated, so the browser can keep this on the
+   compositor and the page stays smooth while being screen-recorded. */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+}
+
+/* Directional variants for the alternating walkthrough rows. */
+.reveal-left {
+  transform: translateX(-26px);
+}
+
+.reveal-right {
+  transform: translateX(26px);
+}
+
+/* Slow pulse on the "live" dot in the hero. */
+.animate-pulse-ring {
+  animation: pulse-ring 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgb(74 222 128 / 45%);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 5px rgb(74 222 128 / 0%);
+  }
+}
+
+/* Someone who asked their system for less motion gets none of the above. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-left,
+  .reveal-right {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .animate-blob,
+  .animate-pulse-ring {
+    animation: none;
   }
 }
 

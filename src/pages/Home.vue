@@ -10,23 +10,23 @@
 
       <div class="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div>
-          <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-xs font-medium tracking-wide text-gray-300 uppercase">
-            <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+          <span v-reveal class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/15 bg-white/5 text-xs font-medium tracking-wide text-gray-300 uppercase">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse-ring"></span>
             Live on the XRP Ledger
           </span>
 
-          <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.05]">
+          <h1 v-reveal="1" class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.05]">
             Impossible to forge.<br />
             <span class="text-primary-blue">Free to verify.</span>
           </h1>
 
-          <p class="mt-6 text-lg sm:text-xl text-gray-300 max-w-xl">
+          <p v-reveal="2" class="mt-6 text-lg sm:text-xl text-gray-300 max-w-xl">
             Anchored lets any institution or regulator issue licences, certifications and
             diplomas that anyone can check in seconds — with no fee, no account, and no
             phone call to your office.
           </p>
 
-          <div class="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div v-reveal="3" class="mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4">
             <router-link to="/verify" class="px-7 py-3.5 bg-primary-blue text-white rounded-lg hover:bg-blue-700 transition-all font-medium shadow-lg shadow-blue-500/30 text-center">
               Verify a credential
             </router-link>
@@ -35,12 +35,12 @@
             </router-link>
           </div>
 
-          <p class="mt-5 text-sm text-gray-500">
+          <p v-reveal="4" class="mt-5 text-sm text-gray-500">
             Open source · No personal data on the ledger · Verification free forever
           </p>
         </div>
 
-        <div class="relative">
+        <div v-reveal="3" class="relative">
           <div class="absolute -inset-4 bg-primary-blue/20 blur-3xl rounded-full"></div>
           <img src="/screens/verified.webp" alt="A credential verifying successfully in Anchored"
             width="1400" height="1188" fetchpriority="high"
@@ -52,14 +52,13 @@
     <!-- The problem -->
     <section class="bg-brand-black border-y border-white/10 py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
       <div class="max-w-5xl mx-auto">
-        <h2 class="text-2xl sm:text-3xl font-bold text-white text-center max-w-3xl mx-auto">
+        <h2 v-reveal class="text-2xl sm:text-3xl font-bold text-white text-center max-w-3xl mx-auto">
           A credential is only worth what someone can confirm about it.
         </h2>
         <div class="mt-12 grid sm:grid-cols-3 gap-6">
-          <div v-for="item in problems" :key="item.stat" class="bg-white/5 border border-white/10 rounded-xl p-6">
-            <div class="text-3xl font-bold text-primary-blue">{{ item.stat }}</div>
-            <p class="mt-2 text-sm text-gray-400">{{ item.text }}</p>
-          </div>
+          <CountUpStat :to="10" suffix=" days" text="Typical wait for an institution to confirm a credential by email or phone." />
+          <CountUpStat :to="25" prefix="$" suffix=" per check" text="Charged by commercial verification services — every time, forever." />
+          <CountUpStat :to="7600" group text="Fraudulent nursing credentials uncovered in a single 2023 US scheme." />
         </div>
       </div>
     </section>
@@ -67,7 +66,7 @@
     <!-- Proof: the three outcomes -->
     <section class="bg-gradient-to-b from-brand-black to-gray-900 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
       <div class="max-w-6xl mx-auto">
-        <div class="text-center max-w-2xl mx-auto">
+        <div v-reveal class="text-center max-w-2xl mx-auto">
           <h2 class="text-3xl sm:text-4xl font-bold text-white">Three answers, in seconds</h2>
           <p class="mt-4 text-gray-400">
             Every check returns one of these. No judgement call, no phone call, no waiting.
@@ -76,7 +75,7 @@
         </div>
 
         <div class="mt-12 grid md:grid-cols-3 gap-6">
-          <figure v-for="state in states" :key="state.title" class="flex flex-col">
+          <figure v-for="(state, i) in states" :key="state.title" v-reveal="i" class="flex flex-col">
             <img :src="state.img" :alt="state.alt" loading="lazy" width="1400" height="1188"
               class="rounded-lg border border-white/10 shadow-xl" />
             <figcaption class="mt-4">
@@ -91,7 +90,7 @@
     <!-- How it works -->
     <section class="bg-gray-900 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
       <div class="max-w-6xl mx-auto">
-        <div class="text-center max-w-2xl mx-auto">
+        <div v-reveal class="text-center max-w-2xl mx-auto">
           <h2 class="text-3xl sm:text-4xl font-bold text-white">Four steps, and your office is out of the loop</h2>
           <p class="mt-4 text-gray-400">
             Set up once. After that, verification happens without anyone contacting you.
@@ -101,7 +100,7 @@
         <div class="mt-14 space-y-16 sm:space-y-24">
           <div v-for="(step, i) in steps" :key="step.title"
             class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
-            <div :class="i % 2 === 1 ? 'lg:order-2' : ''">
+            <div v-reveal :class="[i % 2 === 1 ? 'lg:order-2' : '', i % 2 === 1 ? 'reveal-right' : 'reveal-left']">
               <span class="text-primary-blue font-mono text-sm">0{{ i + 1 }}</span>
               <h3 class="mt-2 text-2xl font-bold text-white">{{ step.title }}</h3>
               <p class="mt-3 text-gray-400">{{ step.text }}</p>
@@ -111,8 +110,9 @@
                 </li>
               </ul>
             </div>
-            <img :src="step.img" :alt="step.alt" loading="lazy"
-              class="rounded-xl border border-white/10 shadow-2xl" :class="i % 2 === 1 ? 'lg:order-1' : ''" />
+            <img :src="step.img" :alt="step.alt" loading="lazy" v-reveal="1"
+              class="rounded-xl border border-white/10 shadow-2xl"
+              :class="[i % 2 === 1 ? 'lg:order-1' : '', i % 2 === 1 ? 'reveal-left' : 'reveal-right']" />
           </div>
         </div>
       </div>
@@ -121,14 +121,14 @@
     <!-- Why trust it -->
     <section class="bg-brand-black border-t border-white/10 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
       <div class="max-w-5xl mx-auto">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white text-center">Why you can trust it</h2>
+        <h2 v-reveal class="text-3xl sm:text-4xl font-bold text-white text-center">Why you can trust it</h2>
         <div class="mt-12 grid sm:grid-cols-3 gap-6">
-          <div v-for="pillar in pillars" :key="pillar.title" class="bg-white/5 border border-white/10 rounded-xl p-6">
+          <div v-for="(pillar, i) in pillars" :key="pillar.title" v-reveal="i" class="bg-white/5 border border-white/10 rounded-xl p-6">
             <h3 class="font-semibold text-white">{{ pillar.title }}</h3>
             <p class="mt-2 text-sm text-gray-400">{{ pillar.text }}</p>
           </div>
         </div>
-        <p class="mt-10 text-center text-sm text-gray-500">
+        <p v-reveal class="mt-10 text-center text-sm text-gray-500">
           Open source under BUSL&#8209;1.1, with a published whitepaper and security policy.
         </p>
       </div>
@@ -139,7 +139,7 @@
       <div class="absolute inset-0">
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[34rem] h-[34rem] bg-primary-blue rounded-full mix-blend-multiply filter blur-3xl opacity-20"></div>
       </div>
-      <div class="relative z-10 max-w-2xl mx-auto text-center">
+      <div v-reveal class="relative z-10 max-w-2xl mx-auto text-center">
         <h2 class="text-3xl sm:text-4xl font-bold text-white">See it for yourself</h2>
         <p class="mt-4 text-gray-300">
           Issue a credential, alter it, and watch verification fail — in about two minutes,
@@ -160,11 +160,8 @@
 </template>
 
 <script setup lang="ts">
-const problems = [
-  { stat: '5–10 days', text: 'Typical wait for an institution to confirm a credential by email or phone.' },
-  { stat: '$15–25', text: 'Charged per check by commercial verification services — every time, forever.' },
-  { stat: '7,600', text: 'Fraudulent nursing credentials uncovered in a single 2023 US scheme.' },
-]
+import CountUpStat from '../components/CountUpStat.vue'
+
 
 const states = [
   {
