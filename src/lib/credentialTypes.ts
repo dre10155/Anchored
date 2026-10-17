@@ -36,6 +36,8 @@ export interface CredentialType {
   fields: CredentialField[]
   /** field used as the human label in tables and revocation lists */
   primaryField: string
+   /** Field holding the expiry year, if this credential type expires at all. */
+  expiryField?: string
 }
 
 export const CREDENTIAL_TYPES: CredentialType[] = [
@@ -62,6 +64,7 @@ export const CREDENTIAL_TYPES: CredentialType[] = [
     issuerNoun: 'Licensing Body',
     issuerDomainPlaceholder: 'licensing.gov',
     primaryField: 'holderName',
+    expiryField: 'expiryYear',
     fields: [
       { key: 'holderName', label: 'Licensee Name', aliases: ['name', 'studentname'] },
       { key: 'profession', label: 'Profession', aliases: ['occupation', 'field'] },

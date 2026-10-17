@@ -8,9 +8,15 @@
 import { Client } from 'xrpl'
 
 const XRPL_WS = process.env.XRPL_WS || 'wss://s.altnet.rippletest.net:51233'
+const verified = new Map<string, number>()
+const VERIFICATION_TTL_MS = 5 * 60 * 1000
 
 /** Throws unless `nftId` is currently held by `issuerAccount`. */
 export async function assertMintedBy(nftId: string, issuerAccount: string): Promise<void> {
+  const key = `${nftId.toUpperCase()}:${issuerAccount}`
+  const seen = verified.get(key)
+  if (seen && Date.now() - seen < VERIFICATION_TTL_MS) return
+
   const client = new Client(XRPL_WS)
   await client.connect()
   try {
@@ -27,7 +33,10 @@ export async function assertMintedBy(nftId: string, issuerAccount: string): Prom
       const found = (resp.result?.account_nfts || []).some(
         (n: any) => String(n.NFTokenID).toUpperCase() === nftId.toUpperCase(),
       )
-      if (found) return
+      if (found) {
+        verified.set(key, Date.now())
+        return
+      }
       marker = resp.result?.marker
       if (!marker) break
     }
