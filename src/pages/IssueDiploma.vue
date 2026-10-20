@@ -65,7 +65,7 @@
                 v-model="holderEmail"
                 type="email"
                 class="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all"
-                placeholder="graduate@example.com"
+                placeholder="holder@example.com"
               />
               <p class="text-xs text-gray-500 mt-1">
                 Leave blank to download and send it yourself.

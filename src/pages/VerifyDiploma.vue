@@ -22,7 +22,7 @@
               <label class="block font-medium text-brand-black mb-2">Upload the credential file</label>
               <input type="file" @change="handleFileUpload" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-blue file:text-white hover:file:bg-blue-700 file:cursor-pointer file:transition-all file:duration-200" accept=".json" />
               <p class="text-xs text-gray-500 mt-2">
-                The <span class="font-mono">.json</span> file the graduate was given — or scan their QR code. Nothing else needed.
+                The <span class="font-mono">.json</span> file you were given — or scan the QR code. Nothing else needed.
               </p>
             </div>
 
@@ -320,7 +320,7 @@ const handleVerify = async () => {
 
     if (identityVerified) {
       resultState.value = 'verified'
-      resultReason.value = `Authentic credential issued by ${issuerDomain.value} — institution identity confirmed via did:web handshake. ${provenance}`
+      resultReason.value = `Authentic credential issued by ${issuerDomain.value} — issuer identity confirmed via did:web handshake. ${provenance}`
     } else {
       resultState.value = 'anchored'
       resultReason.value = issuerDomain.value

@@ -12,7 +12,7 @@
         <div class="text-center mb-8 sm:mb-12">
           <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Revoke a Credential</h1>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
-            Burn a diploma NFT so verifiers see it as revoked — for rescinded degrees
+            Withdraw a credential so every future check reports it as revoked
           </p>
         </div>
 
@@ -65,7 +65,7 @@
             <h2 class="text-xl font-bold text-brand-black mb-2">Revoke a single credential</h2>
             <p class="text-sm text-gray-600 mb-4">
               For batch-issued credentials, burning the anchor above would revoke the entire class.
-              Upload one graduate's credential file to revoke only theirs — this publishes a signed
+              Upload one holder's credential file to revoke only theirs — this publishes a signed
               revocation record for that credential's hash, leaving the rest of the batch valid.
             </p>
             <input
@@ -76,7 +76,7 @@
             />
             <div v-if="credentialToRevoke" class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <p class="text-sm text-gray-700 mb-1">
-                <span class="font-semibold">{{ credentialToRevoke.studentName }}</span> — {{ credentialToRevoke.degree }}
+                <span class="font-semibold">{{ credentialToRevoke.holderName }}</span><template v-if="credentialToRevoke.detail"> — {{ credentialToRevoke.detail }}</template>
               </p>
               <p class="text-xs font-mono text-gray-500 break-all mb-3">{{ credentialToRevoke.hash }}</p>
               <button
@@ -142,6 +142,7 @@ import { withXrpl, submitAndWait, waitForValidatedTx } from '../lib/xrplClient'
 import { useXamanSign } from '../composables/useXamanSign'
 import { buildRevocationTx } from '../lib/verify'
 import { credentialHash } from '../lib/crypto'
+import { getCredentialType, inferCredentialType } from '../lib/credentialTypes'
 import { Wallet } from 'xrpl'
 import XamanSignModal from '../components/XamanSignModal.vue'
 
@@ -163,7 +164,7 @@ interface PendingRevocation {
   label?: string
 }
 const pending = ref<PendingRevocation | null>(null)
-const credentialToRevoke = ref<{ hash: string; studentName: string; degree: string } | null>(null)
+const credentialToRevoke = ref<{ hash: string; holderName: string; detail: string } | null>(null)
 
 const { xaman, cancel: cancelXamanSign, close: closeXaman, signViaXaman } = useXamanSign()
 
@@ -197,7 +198,7 @@ function askRevokeCredential() {
   pending.value = {
     kind: 'credential',
     target: credentialToRevoke.value.hash,
-    label: credentialToRevoke.value.studentName,
+    label: credentialToRevoke.value.holderName,
   }
 }
 
@@ -212,10 +213,18 @@ async function handleCredentialUpload(e: Event) {
     const vc = data.vc || data
     const salt = data.salt || vc.proof?.salt || ''
     if (!salt) throw new Error('No salt found in this credential file.')
+    // Read the holder's name from the credential type's own primary field.
+    // Hardcoding studentName/degree showed every licence or workforce
+    // credential as "Unknown graduate".
+    const subject = vc.credentialSubject || {}
+    const type = data.credentialType
+      ? getCredentialType(data.credentialType)
+      : inferCredentialType(subject) ?? getCredentialType(undefined)
+    const detailField = type.fields.find((f) => f.key !== type.primaryField && f.type !== 'number')
     credentialToRevoke.value = {
       hash: await credentialHash(vc, salt),
-      studentName: vc.credentialSubject?.studentName || 'Unknown graduate',
-      degree: vc.credentialSubject?.degree || '',
+      holderName: String(subject[type.primaryField] ?? '').trim() || 'Unnamed holder',
+      detail: detailField ? String(subject[detailField.key] ?? '') : '',
     }
   } catch (err: any) {
     error.value = 'Could not read credential file: ' + (err?.message || String(err))

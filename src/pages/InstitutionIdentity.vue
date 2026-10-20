@@ -10,10 +10,10 @@
 
       <div class="max-w-4xl mx-auto relative z-10">
         <div class="text-center mb-8 sm:mb-12">
-          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Institution Identity</h1>
+          <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Issuer Identity</h1>
           <p class="text-xl text-gray-300 max-w-2xl mx-auto">
             Bind your XRPL wallet to your domain so verifiers see
-            <span class="text-green-400 font-medium">"issued by your-university.edu"</span>
+            <span class="text-green-400 font-medium">"issued by your-organisation.com"</span>
             instead of a wallet address
           </p>
         </div>
@@ -21,8 +21,8 @@
         <div class="bg-white rounded-xl shadow-xl p-5 sm:p-8 border border-gray-200">
           <div class="space-y-6">
             <div>
-              <label class="block font-medium text-brand-black mb-2">Institution Domain</label>
-              <input v-model="domain" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="registrar.university.edu" />
+              <label class="block font-medium text-brand-black mb-2">Organisation Domain</label>
+              <input v-model="domain" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-all font-mono" placeholder="credentials.your-organisation.com" />
             </div>
             <div>
               <label class="block font-medium text-brand-black mb-2">Issuing Wallet Address</label>

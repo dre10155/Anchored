@@ -21,8 +21,8 @@
           </h1>
 
           <p v-reveal="2" class="mt-6 text-lg sm:text-xl text-gray-300 max-w-xl">
-            Anchored lets any institution or regulator issue licences, certifications and
-            diplomas that anyone can check in seconds — with no fee, no account, and no
+            Anchored lets any organisation issue licences, certificates and permits that
+            anyone can check in seconds — with no fee, no account, and no
             phone call to your office.
           </p>
 
@@ -56,7 +56,7 @@
           A credential is only worth what someone can confirm about it.
         </h2>
         <div class="mt-12 grid sm:grid-cols-3 gap-6">
-          <CountUpStat :to="10" suffix=" days" text="Typical wait for an institution to confirm a credential by email or phone." />
+          <CountUpStat :to="10" suffix=" days" text="Typical wait for an issuer to confirm a credential by email or phone." />
           <CountUpStat :to="25" prefix="$" suffix=" per check" text="Charged by commercial verification services — every time, forever." />
           <CountUpStat :to="7600" group text="Fraudulent nursing credentials uncovered in a single 2023 US scheme." />
         </div>
@@ -87,33 +87,29 @@
       </div>
     </section>
 
-    <!-- How it works -->
-    <section class="bg-gray-900 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
-      <div class="max-w-6xl mx-auto">
-        <div v-reveal class="text-center max-w-2xl mx-auto">
-          <h2 class="text-3xl sm:text-4xl font-bold text-white">Four steps, and your office is out of the loop</h2>
-          <p class="mt-4 text-gray-400">
-            Set up once. After that, verification happens without anyone contacting you.
-          </p>
-        </div>
+    <FlowShowcase />
 
-        <div class="mt-14 space-y-16 sm:space-y-24">
-          <div v-for="(step, i) in steps" :key="step.title"
-            class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
-            <div v-reveal :class="[i % 2 === 1 ? 'lg:order-2' : '', i % 2 === 1 ? 'reveal-right' : 'reveal-left']">
-              <span class="text-primary-blue font-mono text-sm">0{{ i + 1 }}</span>
-              <h3 class="mt-2 text-2xl font-bold text-white">{{ step.title }}</h3>
-              <p class="mt-3 text-gray-400">{{ step.text }}</p>
-              <ul class="mt-4 space-y-2">
-                <li v-for="point in step.points" :key="point" class="flex gap-2.5 text-sm text-gray-300">
-                  <span class="text-primary-blue mt-0.5">&#10003;</span>{{ point }}
-                </li>
-              </ul>
-            </div>
-            <img :src="step.img" :alt="step.alt" loading="lazy" v-reveal="1"
-              class="rounded-xl border border-white/10 shadow-2xl"
-              :class="[i % 2 === 1 ? 'lg:order-1' : '', i % 2 === 1 ? 'reveal-left' : 'reveal-right']" />
-          </div>
+    <!-- Dashboard -->
+    <section class="bg-gradient-to-b from-gray-900 to-brand-black py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div v-reveal class="reveal-left">
+          <h2 class="text-3xl sm:text-4xl font-bold text-white">Everything you have issued, in one place</h2>
+          <p class="mt-4 text-gray-400">
+            Every credential your organisation has anchored, and every one it has withdrawn —
+            read straight from the ledger, not from a database we keep about you.
+          </p>
+          <ul class="mt-6 space-y-3">
+            <li v-for="point in dashboardPoints" :key="point.title" class="flex gap-3">
+              <span class="text-primary-blue mt-1">&#10003;</span>
+              <span>
+                <span class="text-white font-medium">{{ point.title }}</span>
+                <span class="block text-sm text-gray-400">{{ point.text }}</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+        <div v-reveal="1" class="reveal-right">
+          <MockDashboard />
         </div>
       </div>
     </section>
@@ -161,6 +157,8 @@
 
 <script setup lang="ts">
 import CountUpStat from '../components/CountUpStat.vue'
+import FlowShowcase from '../components/FlowShowcase.vue'
+import MockDashboard from '../components/MockDashboard.vue'
 
 
 const states = [
@@ -168,7 +166,7 @@ const states = [
     title: 'Verified',
     colour: 'text-green-400',
     img: '/screens/verified.webp',
-    alt: 'A genuine credential verifying, naming the issuing institution',
+    alt: 'A genuine credential verifying, naming the issuing organisation',
     text: 'Genuine, unaltered, and issued by the organisation it names — confirmed against that organisation’s own domain.',
   },
   {
@@ -187,47 +185,11 @@ const states = [
   },
 ]
 
-const steps = [
-  {
-    title: 'Prove who you are, once',
-    img: '/screens/identity.webp',
-    alt: 'The institution identity page, binding a domain to an issuing wallet',
-    text: 'Bind your own domain to your issuing account, in both directions. Verified credentials then display your institution’s name rather than an anonymous identifier.',
-    points: [
-      'Impersonation requires compromising your website and your keys',
-      'Anyone can check the binding independently, forever',
-    ],
-  },
-  {
-    title: 'Issue one, or a whole class',
-    img: '/screens/issue.webp',
-    alt: 'The issuing form, filled in with a credential',
-    text: 'Issue a single credential, or anchor an entire graduating class under one signature. Recipients get their credential and a QR code automatically.',
-    points: [
-      'Forty credentials or four hundred — the same single signature',
-      'Only a fingerprint is published; no personal data reaches the ledger',
-    ],
-  },
-  {
-    title: 'Anyone verifies, free',
-    img: '/screens/verified.webp',
-    alt: 'An employer verifying a credential',
-    text: 'An employer, university or licensing board uploads the file or scans the QR. They get an answer in seconds, with no account and no fee — and your office never hears about it.',
-    points: [
-      'Free and permanent — no link that expires after seven days',
-      'Expired credentials are flagged automatically',
-    ],
-  },
-  {
-    title: 'Withdraw when you must',
-    img: '/screens/revoke.webp',
-    alt: 'The revocation page listing anchored credentials',
-    text: 'Rescind a credential and every future check reflects it immediately — the one thing paper can never do.',
-    points: [
-      'No bulletin to publish, no copies to chase',
-      'The holder’s document is unchanged, and still reports as revoked',
-    ],
-  },
+const dashboardPoints = [
+  { title: 'Revocations stay visible', text: 'Withdrawing a credential removes its anchor from the ledger — most implementations would lose it. Yours stays listed, marked revoked.' },
+  { title: 'Names only when you supply them', text: 'The ledger holds no personal data. Load your own class manifest to search by name; it is read on your device and never uploaded.' },
+  { title: 'Export to a spreadsheet', text: 'Filter by type, status or date, and take the result away as CSV.' },
+  { title: 'No verification tracking', text: 'We cannot tell you how often a credential was checked, because we are not there when it happens. Nobody needs our permission, and nobody is watching.' },
 ]
 
 const pillars = [
