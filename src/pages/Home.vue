@@ -21,8 +21,8 @@
           </h1>
 
           <p v-reveal="2" class="mt-6 text-lg sm:text-xl text-gray-300 max-w-xl">
-            Anchored lets any institution or regulator issue licences, certifications and
-            diplomas that anyone can check in seconds — with no fee, no account, and no
+            Anchored lets any organisation issue licences, certificates and permits that
+            anyone can check in seconds — with no fee, no account, and no
             phone call to your office.
           </p>
 
@@ -56,7 +56,7 @@
           A credential is only worth what someone can confirm about it.
         </h2>
         <div class="mt-12 grid sm:grid-cols-3 gap-6">
-          <CountUpStat :to="10" suffix=" days" text="Typical wait for an institution to confirm a credential by email or phone." />
+          <CountUpStat :to="10" suffix=" days" text="Typical wait for an issuer to confirm a credential by email or phone." />
           <CountUpStat :to="25" prefix="$" suffix=" per check" text="Charged by commercial verification services — every time, forever." />
           <CountUpStat :to="7600" group text="Fraudulent nursing credentials uncovered in a single 2023 US scheme." />
         </div>
@@ -95,7 +95,7 @@
         <div v-reveal class="reveal-left">
           <h2 class="text-3xl sm:text-4xl font-bold text-white">Everything you have issued, in one place</h2>
           <p class="mt-4 text-gray-400">
-            Every credential your institution has anchored, and every one it has withdrawn —
+            Every credential your organisation has anchored, and every one it has withdrawn —
             read straight from the ledger, not from a database we keep about you.
           </p>
           <ul class="mt-6 space-y-3">
@@ -166,7 +166,7 @@ const states = [
     title: 'Verified',
     colour: 'text-green-400',
     img: '/screens/verified.webp',
-    alt: 'A genuine credential verifying, naming the issuing institution',
+    alt: 'A genuine credential verifying, naming the issuing organisation',
     text: 'Genuine, unaltered, and issued by the organisation it names — confirmed against that organisation’s own domain.',
   },
   {

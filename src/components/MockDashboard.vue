@@ -15,7 +15,7 @@
       </div>
       <div class="flex items-center gap-2 text-xs text-gray-400">
         <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-        salcc.edu.lc
+        anchor-ed.vercel.app
       </div>
     </div>
 
@@ -58,7 +58,7 @@ const stats = reactive([
 ])
 
 const rows = [
-  { label: 'Associate Degree in Nursing — Class of 2026', ref: 'vc:merkle:2ec5884e…', state: 'Live' },
+  { label: 'Site Safety Induction — 120 workers', ref: 'vc:merkle:2ec5884e…', state: 'Live' },
   { label: 'Explosives Handling Licence', ref: 'vc:sha256:a27fa348…', state: 'Live' },
   { label: 'Petroleum Storage Licence', ref: 'vc:sha256:77820582…', state: 'Revoked' },
 ]

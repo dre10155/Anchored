@@ -1,11 +1,11 @@
 <template>
   <!-- A device pinned while the four flows scroll past it, in the order an
-       institution meets them.
+       organisation meets them.
 
        The frame changes with the step: Identity, Issue and Revoke are desk
        work and appear in a browser; Verify appears in a phone, because that is
        genuinely where it happens — an employer scanning a QR. Putting a
-       registrar's batch-issuing screen in a phone would look slicker and
+       batch-issuing screen in a phone would look slicker and
        misrepresent how the product is used. -->
   <section class="relative bg-gray-900 py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
     <div class="max-w-6xl mx-auto">
@@ -77,8 +77,8 @@ const steps = [
     title: 'Prove who you are, once',
     device: 'browser' as const,
     img: '/screens/identity.webp',
-    alt: 'Binding an institution domain to its issuing wallet',
-    text: 'Bind your own domain to your issuing account, in both directions. Verified credentials then display your institution’s name rather than an anonymous identifier.',
+    alt: 'Binding an organisation domain to its issuing wallet',
+    text: 'Bind your own domain to your issuing account, in both directions. Verified credentials then display your organisation’s name rather than an anonymous identifier.',
     points: [
       'Impersonation requires compromising your website and your keys',
       'Anyone can check the binding independently, forever',
@@ -89,7 +89,7 @@ const steps = [
     device: 'browser' as const,
     img: '/screens/issue.webp',
     alt: 'Issuing a credential',
-    text: 'Issue a single credential, or anchor an entire graduating class under one signature. Recipients get their credential and a QR code automatically.',
+    text: 'Issue a single credential, or anchor an entire batch under one signature. Recipients get their credential and a QR code automatically.',
     points: [
       'Forty credentials or four hundred — the same single signature',
       'Only a fingerprint is published; no personal data reaches the ledger',
