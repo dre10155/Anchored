@@ -68,8 +68,12 @@ const links = [
     </main>
 
     <footer class="border-t border-white/10 py-6">
-      <div class="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500">
-        Anchored — credentials anchored on the XRP Ledger · Testnet
+      <div class="max-w-6xl mx-auto px-4 text-center text-sm text-gray-500 space-y-2">
+        <p>Anchored — credentials anchored on the XRP Ledger · Testnet</p>
+        <p>
+          Contact:
+          <a href="mailto:info@mendesdigital.com" class="text-gray-300 hover:text-white transition-colors">info@mendesdigital.com</a>
+        </p>
       </div>
     </footer>
   </div>
