@@ -150,6 +150,10 @@
             Read the code
           </a>
         </div>
+        <p class="mt-8 text-sm text-gray-400">
+          Interested in a pilot for your organisation?
+          <a href="mailto:info@mendesdigital.com" class="text-primary-blue hover:text-blue-400 font-medium transition-colors">info@mendesdigital.com</a>
+        </p>
       </div>
     </section>
   </div>
